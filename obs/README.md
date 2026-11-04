@@ -130,6 +130,24 @@ python obs/equilibrate.py INPUT [options]
 | `--output-dir` | input directory | Where to write `<leg>_lambda_<n>.bss`. |
 | `--overwrite` | off | Regenerate existing outputs. |
 
+### `equilibrate_all.py`
+
+Equilibrates every prepared input under `--output-dir` that doesn't have an
+output yet, running one end state at a time on each GPU and bound legs first:
+
+```
+python obs/equilibrate_all.py --gpus 0 1 2 --systems 'jacs_set/*' 'water_set/*'
+```
+
+`--gpus` takes the indices shown by `nvidia-smi`; you don't need to set
+`CUDA_VISIBLE_DEVICES` yourself. Each job is pinned to its GPU with
+`CUDA_VISIBLE_DEVICES` and `OPENCL_VISIBLE_DEVICES`, and logs to `<leg>_lambda_<n>.log` next to its input.
+Use `--kinds rbfe` or `--kinds abfe` to restrict the job type, and `--dry-run` to
+list the jobs. A failed job doesn't stop the others, and re-running picks up
+whatever is left.
+
+### Equilibration protocol
+
 Each stage in the protocol file is a minimisation or dynamics run. A stage can
 set `restraint` (`heavy`, `backbone`, or any Sire selection) with force constant
 `k`, and overrides the section's `defaults`.
