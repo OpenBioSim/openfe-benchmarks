@@ -41,6 +41,7 @@ def main():
     receptor = _common.load_receptor(param_dir) if "bound" in args.legs else None
 
     root = _common.system_dir(args.output_dir, args.system_group, args.system_name) / "abfe"
+    failed = []
     for name in names:
         out = root / _common.safe_name(name)
         if not args.overwrite and all((out / f"{leg}.bss").exists() for leg in args.legs):
@@ -48,39 +49,48 @@ def main():
             continue
         out.mkdir(parents=True, exist_ok=True)
         logger.info(f"Preparing {name}")
+        try:
+            prepare_ligand(args, name, out, param_dir, receptor)
+        except Exception:
+            logger.exception(f"Failed to prepare {name}")
+            failed.append(name)
 
-        ligand = _common.load_ligand(param_dir, name)
-        for leg in args.legs:
-            if leg == "bound":
-                system = receptor.copy()
-                system.addMolecules(ligand)
-                padding = args.bound_padding
-            elif leg == "free":
-                system = ligand.toSystem()
-                padding = args.free_padding
-            else:
-                raise ValueError(f"Unknown leg '{leg}'")
+    _common.report_failures(failed, len(names), "ligands")
 
-            with tempfile.TemporaryDirectory() as tmp:
-                system = _common.solvate(
-                    system, padding, args.box_shape, args.ion_conc, work_dir=tmp
-                )
-            sr.stream.save(decouple(system), str(out / f"{leg}.bss"))
 
-        _common.write_json(
-            out / "ligand.json",
-            {
-                "system_group": args.system_group,
-                "system_name": args.system_name,
-                "ligand": name,
-                "charge": _common.net_charge(ligand),
-                "box_shape": args.box_shape,
-                "bound_padding": args.bound_padding,
-                "free_padding": args.free_padding,
-                "ion_conc": args.ion_conc,
-                "provenance": _common.provenance(),
-            },
-        )
+def prepare_ligand(args, name, out, param_dir, receptor):
+    ligand = _common.load_ligand(param_dir, name)
+    for leg in args.legs:
+        if leg == "bound":
+            system = receptor.copy()
+            system.addMolecules(ligand)
+            padding = args.bound_padding
+        elif leg == "free":
+            system = ligand.toSystem()
+            padding = args.free_padding
+        else:
+            raise ValueError(f"Unknown leg '{leg}'")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            system = _common.solvate(
+                system, padding, args.box_shape, args.ion_conc, work_dir=tmp
+            )
+        sr.stream.save(decouple(system), str(out / f"{leg}.bss"))
+
+    _common.write_json(
+        out / "ligand.json",
+        {
+            "system_group": args.system_group,
+            "system_name": args.system_name,
+            "ligand": name,
+            "charge": _common.net_charge(ligand),
+            "box_shape": args.box_shape,
+            "bound_padding": args.bound_padding,
+            "free_padding": args.free_padding,
+            "ion_conc": args.ion_conc,
+            "provenance": _common.provenance(),
+        },
+    )
 
 
 if __name__ == "__main__":

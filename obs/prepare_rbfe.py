@@ -69,6 +69,7 @@ def main():
     receptor = _common.load_receptor(param_dir) if "bound" in args.legs else None
 
     root = _common.system_dir(args.output_dir, args.system_group, args.system_name) / "rbfe"
+    failed = []
     for edge in edges:
         name = _common.edge_name(edge)
         out = root / name
@@ -77,46 +78,55 @@ def main():
             continue
         out.mkdir(parents=True, exist_ok=True)
         logger.info(f"Preparing {name}")
+        try:
+            prepare_edge(args, edge, out, param_dir, receptor)
+        except Exception:
+            logger.exception(f"Failed to prepare {name}")
+            failed.append(name)
 
-        merged, lig_a, lig_b, mapping = merge_edge(
-            edge, param_dir, args.allow_ring_breaking, args.allow_ring_size_change
-        )
+    _common.report_failures(failed, len(edges), "edges")
 
-        for leg in args.legs:
-            if leg == "bound":
-                system = receptor.copy()
-                system.addMolecules(merged)
-                padding = args.bound_padding
-            elif leg == "free":
-                system = merged.toSystem()
-                padding = args.free_padding
-            else:
-                raise ValueError(f"Unknown leg '{leg}'")
 
-            with tempfile.TemporaryDirectory() as tmp:
-                system = _common.solvate(
-                    system, padding, args.box_shape, args.ion_conc, work_dir=tmp
-                )
-            BSS.Stream.save(system, str(out / leg))
+def prepare_edge(args, edge, out, param_dir, receptor):
+    merged, lig_a, lig_b, mapping = merge_edge(
+        edge, param_dir, args.allow_ring_breaking, args.allow_ring_size_change
+    )
 
-        _common.write_json(
-            out / "edge.json",
-            {
-                "system_group": args.system_group,
-                "system_name": args.system_name,
-                "ligand_a": edge.componentA.name,
-                "ligand_b": edge.componentB.name,
-                "charge_a": _common.net_charge(lig_a),
-                "charge_b": _common.net_charge(lig_b),
-                "mapping": mapping,
-                "annotations": dict(edge.annotations),
-                "box_shape": args.box_shape,
-                "bound_padding": args.bound_padding,
-                "free_padding": args.free_padding,
-                "ion_conc": args.ion_conc,
-                "provenance": _common.provenance(),
-            },
-        )
+    for leg in args.legs:
+        if leg == "bound":
+            system = receptor.copy()
+            system.addMolecules(merged)
+            padding = args.bound_padding
+        elif leg == "free":
+            system = merged.toSystem()
+            padding = args.free_padding
+        else:
+            raise ValueError(f"Unknown leg '{leg}'")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            system = _common.solvate(
+                system, padding, args.box_shape, args.ion_conc, work_dir=tmp
+            )
+        BSS.Stream.save(system, str(out / leg))
+
+    _common.write_json(
+        out / "edge.json",
+        {
+            "system_group": args.system_group,
+            "system_name": args.system_name,
+            "ligand_a": edge.componentA.name,
+            "ligand_b": edge.componentB.name,
+            "charge_a": _common.net_charge(lig_a),
+            "charge_b": _common.net_charge(lig_b),
+            "mapping": mapping,
+            "annotations": dict(edge.annotations),
+            "box_shape": args.box_shape,
+            "bound_padding": args.bound_padding,
+            "free_padding": args.free_padding,
+            "ion_conc": args.ion_conc,
+            "provenance": _common.provenance(),
+        },
+    )
 
 
 if __name__ == "__main__":

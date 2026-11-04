@@ -361,6 +361,13 @@ def provenance():
     }
 
 
+def report_failures(failed, total, kind):
+    if failed:
+        logger.error(f"{len(failed)} of {total} {kind} failed: {', '.join(failed)}")
+        raise SystemExit(1)
+    logger.info(f"All {total} {kind} prepared")
+
+
 def write_json(path, data):
     Path(path).write_text(json.dumps(data, indent=2))
 
