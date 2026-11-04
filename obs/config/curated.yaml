@@ -59,16 +59,25 @@ blocks:
   D_conv:
     description: >-
       Conventional OpenFE mappings for the ring-breaking systems, to compare
-      against block D, plus the macrocycles until they have ring-breaking mappings.
+      against block D.
     rbfe:
-      - bayer_macrocycles/brd4
-      - bayer_macrocycles/ftase
       - scaffold_hopping/bace_baumann
       - scaffold_hopping/bace1
       - scaffold_hopping/chk1
       - scaffold_hopping/ezh2
       - scaffold_hopping/fxa
       - scaffold_hopping/tpsb2
+
+  D_macro:
+    description: >-
+      Macrocycles with the OpenFE mappings. 61a~25e closes the macrocycle through
+      atoms that are ghosts in the other end state. No bond is annihilated, but
+      BSS.Align.merge only accepts the mapping with ring breaking allowed.
+    allow_ring_breaking: true
+    allow_ring_size_change: true
+    rbfe:
+      - bayer_macrocycles/brd4
+      - bayer_macrocycles/ftase
 
   E:
     description: Default mode, with all SOMD2 features enabled.

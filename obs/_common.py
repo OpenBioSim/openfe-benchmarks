@@ -227,13 +227,11 @@ def parameterise_system(args, data=None):
             raise ValueError(f"No '{args.charge_type}' cofactors for {data.system_name}")
         path = out / "cofactors.bss"
         if args.overwrite or not path.exists():
-            cofactors = BSS._SireWrappers.System()
+            cofactors = []
             for name, rdmol in read_sdf(data.cofactors[args.charge_type]).items():
                 logger.info(f"Parameterising cofactor {name}")
-                cofactors.addMolecules(
-                    parameterise_small_molecule(rdmol, args.ligand_forcefield)
-                )
-            BSS.Stream.save(cofactors, str(path.with_suffix("")))
+                cofactors.append(parameterise_small_molecule(rdmol, args.ligand_forcefield))
+            BSS.Stream.save(BSS._SireWrappers.System(cofactors), str(path.with_suffix("")))
 
     write_json(meta_file, {**metadata, "provenance": provenance()})
     return out
@@ -251,7 +249,8 @@ def load_receptor(param_dir):
     system = BSS.IO.readMolecules([str(prm7), str(param_dir / "protein.rst7")])
     cofactors = param_dir / "cofactors.bss"
     if cofactors.exists():
-        system.addMolecules(BSS.Stream.load(str(cofactors)).getMolecules())
+        # Cached molecules keep their numbers, which can clash with the protein's.
+        system.addMolecules([m.copy() for m in BSS.Stream.load(str(cofactors)).getMolecules()])
     return system
 
 

@@ -63,7 +63,7 @@ def prepare_ligand(args, name, out, param_dir, receptor):
     for leg in args.legs:
         if leg == "bound":
             system = receptor.copy()
-            system.addMolecules(ligand)
+            system.addMolecules(ligand.copy())
             padding = args.bound_padding
         elif leg == "free":
             system = ligand.toSystem()
