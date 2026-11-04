@@ -1,8 +1,11 @@
 """Shared helpers for preparing openfe-benchmarks systems for SOMD2."""
 
+import datetime
+import importlib
 import json
 import logging
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -197,6 +200,7 @@ def parameterise_system(args, data=None):
     }
     if meta_file.exists() and not args.overwrite:
         previous = json.loads(meta_file.read_text())
+        previous.pop("provenance", None)
         if previous != metadata:
             raise ValueError(
                 f"Existing parameters in {out} were generated with different settings "
@@ -229,7 +233,7 @@ def parameterise_system(args, data=None):
                 )
             BSS.Stream.save(cofactors, str(path.with_suffix("")))
 
-    meta_file.write_text(json.dumps(metadata, indent=2))
+    write_json(meta_file, {**metadata, "provenance": provenance()})
     return out
 
 
@@ -302,6 +306,59 @@ def add_solvation_args(parser):
 
 def net_charge(mol):
     return round(mol.charge().value())
+
+
+PROVENANCE_MODULES = [
+    "BioSimSpace",
+    "sire",
+    "openmm",
+    "openmmforcefields",
+    "parmed",
+    "openff.toolkit",
+    "openforcefields",
+    "gufe",
+    "rdkit",
+]
+
+
+def benchmark_commit():
+    """Return the openfe-benchmarks commit, and whether its data has local changes."""
+    import openfe_benchmarks
+
+    repo = Path(openfe_benchmarks.__file__).resolve().parent.parent
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--", "openfe_benchmarks/data"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return {"version": openfe_benchmarks.__version__, "commit": None, "dirty": None}
+    return {
+        "version": openfe_benchmarks.__version__,
+        "commit": commit,
+        "dirty": bool(status),
+    }
+
+
+def provenance():
+    versions = {}
+    for name in PROVENANCE_MODULES:
+        try:
+            versions[name] = getattr(importlib.import_module(name), "__version__", None)
+        except ImportError:
+            versions[name] = None
+    versions["sire"] += f"+{sr.__branch__}.{sr.__revisionid__}"
+    return {
+        "openfe_benchmarks": benchmark_commit(),
+        "versions": versions,
+        "date": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
 
 
 def write_json(path, data):

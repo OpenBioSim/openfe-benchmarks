@@ -114,6 +114,7 @@ def main():
                 "bound_padding": args.bound_padding,
                 "free_padding": args.free_padding,
                 "ion_conc": args.ion_conc,
+                "provenance": _common.provenance(),
             },
         )
 
