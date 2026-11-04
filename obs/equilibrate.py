@@ -106,6 +106,15 @@ def rescale(system, space):
     return with_coordinates(system, coords, 1, space)
 
 
+def reduce_box(system):
+    """Put a triclinic box in the reduced form OpenMM requires. Inputs from before
+    this was done in solvation can be marginally outside it because of rounding."""
+    space = system.space()
+    if hasattr(space, "reduce"):
+        space.reduce(0)
+        system.set_space(space)
+
+
 def run_stages(mols, stages, defaults, state, platform, name="stage"):
     for i, stage in enumerate(stages):
         logger.info(f"lambda = {state}: {name} {i + 1}/{len(stages)} {stage}")
@@ -171,6 +180,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     system = sr.stream.load(str(input_file))
+    reduce_box(system)
     try:
         system.molecules("property is_perturbable")
     except KeyError:

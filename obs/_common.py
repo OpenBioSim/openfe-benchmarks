@@ -284,7 +284,7 @@ def solvate(system, padding, box_shape, ion_conc, work_dir=None):
     else:
         raise ValueError(f"Unsupported box shape '{box_shape}'")
     logger.info(f"Solvating in a {box_shape} box with image distance {width}")
-    return BSS.Solvent.tip3p(
+    system = BSS.Solvent.tip3p(
         molecule=system,
         box=box,
         angles=angles,
@@ -292,6 +292,9 @@ def solvate(system, padding, box_shape, ion_conc, work_dir=None):
         is_neutral=True,
         work_dir=work_dir,
     )
+    # Rounding can leave the box marginally outside the reduced form OpenMM requires.
+    system.reduceBoxVectors()
+    return system
 
 
 def add_solvation_args(parser):
