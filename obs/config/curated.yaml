@@ -1,0 +1,75 @@
+# Curated benchmark set for the SOMD2 paper. Systems are listed explicitly so the
+# set doesn't change when systems are added upstream.
+#
+# Each block has 'rbfe' and/or 'abfe' lists of 'group/name' systems. A block can
+# also set 'allow_ring_breaking' and 'allow_ring_size_change' for its RBFE edges.
+
+blocks:
+  A:
+    description: Reproduction of the JACS set.
+    rbfe:
+      - jacs_set/bace
+      - jacs_set/cdk2
+      - jacs_set/jnk1
+      - jacs_set/mcl1
+      - jacs_set/p38
+      - jacs_set/ptp1b
+      - jacs_set/thrombin
+      - jacs_set/tyk2
+
+  B:
+    description: Charge-changing perturbations.
+    rbfe:
+      - charge_annihilation_set/cdk2
+      - charge_annihilation_set/dlk
+      - charge_annihilation_set/egfr
+      - charge_annihilation_set/ephx2
+      - charge_annihilation_set/irak4_s2
+      - charge_annihilation_set/irak4_s3
+      - charge_annihilation_set/itk
+      - charge_annihilation_set/jak1
+      - charge_annihilation_set/jnk1
+      - charge_annihilation_set/ptp1b
+      - charge_annihilation_set/thrombin
+      - charge_annihilation_set/tyk2
+
+  C:
+    description: Buried waters, run with and without GCMC.
+    rbfe:
+      - water_set/brd4
+      - water_set/chk1
+      - water_set/hsp90_kung
+      - water_set/hsp90_woodhead
+      - water_set/scyt_dehyd
+      - water_set/taf12
+      - water_set/thrombin
+      - water_set/urokinase
+
+  D:
+    description: Ring breaking. Provisional, pending the existing ring-breaking data.
+    allow_ring_breaking: true
+    allow_ring_size_change: true
+    rbfe:
+      - bayer_macrocycles/brd4
+      - bayer_macrocycles/ftase
+      - scaffold_hopping/bace_baumann
+      - scaffold_hopping/bace1
+      - scaffold_hopping/chk1
+      - scaffold_hopping/ezh2
+      - scaffold_hopping/fxa
+      - scaffold_hopping/tpsb2
+
+  E:
+    description: Default mode, with all SOMD2 features enabled.
+    rbfe:
+      - miscellaneous_set/btk
+      - miscellaneous_set/cdk8
+      - miscellaneous_set/faah
+      - miscellaneous_set/galectin
+      - miscellaneous_set/hiv1_protease
+
+  G:
+    description: ABFE, for comparison with the RBFE results in blocks A and C.
+    abfe:
+      - jacs_set/tyk2
+      - water_set/brd4

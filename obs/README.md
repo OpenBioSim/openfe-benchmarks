@@ -69,9 +69,25 @@ somd2 bound_lambda_0.bss --perturbed-system bound_lambda_1.bss --replica-exchang
 
 Without `--edges` or `--ligands`, every edge or ligand in the system is
 prepared. Existing outputs are skipped unless `--overwrite` is passed, so
-interrupted runs can be restarted. Systems are independent, so they can be
-prepared in parallel. Steps 1 and 2 take a few seconds per ligand or edge on a
-single CPU core.
+interrupted runs can be restarted. Steps 1 and 2 take a few seconds per ligand
+or edge on a single CPU core.
+
+### Benchmark sets
+
+The curated set for the SOMD2 paper is defined in `config/curated.yaml`, as
+blocks of RBFE and ABFE systems. To prepare and equilibrate it, or some of its
+blocks:
+
+```
+python obs/prepare_set.py --set curated --jobs 8
+python obs/equilibrate_all.py --set curated --gpus 0 1 2
+python obs/equilibrate_all.py --set curated --blocks A G --gpus 0 1 2
+```
+
+`prepare_set.py` runs `--jobs` systems at once, logging each to
+`logs/<group>_<system>.log`, and passes any options it doesn't recognise (e.g.
+`--output-dir`, `--overwrite`) on to the preparation scripts. Ring-breaking
+options set on a block are passed to `prepare_rbfe.py` for its systems.
 
 ## Usage
 
@@ -141,9 +157,10 @@ python obs/equilibrate_all.py --gpus 0 1 2 --systems 'jacs_set/*' 'water_set/*'
 
 `--gpus` takes the indices shown by `nvidia-smi`; you don't need to set
 `CUDA_VISIBLE_DEVICES` yourself. Each job is pinned to its GPU with
-`CUDA_VISIBLE_DEVICES` and `OPENCL_VISIBLE_DEVICES`, and logs to `<leg>_lambda_<n>.log` next to its input.
-Use `--kinds rbfe` or `--kinds abfe` to restrict the job type, and `--dry-run` to
-list the jobs. A failed job doesn't stop the others, and re-running picks up
+`CUDA_VISIBLE_DEVICES` and `OPENCL_VISIBLE_DEVICES`, and logs to
+`<leg>_lambda_<n>.log` next to its input. `--set` and `--blocks` restrict the jobs
+to a benchmark set, `--kinds rbfe` or `--kinds abfe` to one job type, and
+`--dry-run` lists the jobs. A failed job doesn't stop the others, and re-running picks up
 whatever is left.
 
 ### Equilibration protocol

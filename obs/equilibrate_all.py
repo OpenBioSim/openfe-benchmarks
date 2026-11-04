@@ -12,20 +12,26 @@ import threading
 import time
 from pathlib import Path
 
+import _sets
+
 logger = logging.getLogger("obs")
 
 EQUILIBRATE = Path(__file__).parent / "equilibrate.py"
 END_STATES = {"rbfe": [0, 1], "abfe": [0]}
 
 
-def find_jobs(root, kinds, systems, overwrite):
+def find_jobs(root, kinds, systems, overwrite, in_set=None):
+    """Find unequilibrated inputs. 'in_set' optionally maps each kind to the
+    'group/name' systems of a benchmark set."""
     jobs = []
     for kind in kinds:
         for path in sorted(Path(root).glob(f"*/*/{kind}/*/*.bss")):
             if "_lambda_" in path.stem:
                 continue
-            group, name = path.parts[-5], path.parts[-4]
-            if systems and not any(fnmatch.fnmatch(f"{group}/{name}", s) for s in systems):
+            system = f"{path.parts[-5]}/{path.parts[-4]}"
+            if in_set is not None and system not in in_set[kind]:
+                continue
+            if systems and not any(fnmatch.fnmatch(system, s) for s in systems):
                 continue
             for state in END_STATES[kind]:
                 output = path.with_name(f"{path.stem}_lambda_{state}.bss")
@@ -75,6 +81,10 @@ def main():
     parser.add_argument(
         "--protocol", default=str(Path(__file__).parent / "config" / "equilibration.yaml")
     )
+    parser.add_argument(
+        "--set", default=None, help="Only equilibrate a benchmark set, e.g. curated."
+    )
+    parser.add_argument("--blocks", nargs="+", default=None, help="Blocks of --set to use.")
     parser.add_argument("--platform", default=None, help="e.g. cuda, opencl")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List the jobs and exit.")
@@ -86,7 +96,15 @@ def main():
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    found = find_jobs(args.output_dir, args.kinds, args.systems, args.overwrite)
+    in_set = None
+    if args.set is not None:
+        in_set = {kind: set() for kind in _sets.KINDS}
+        for _, kind, group, name, _ in _sets.load_set(args.set, args.blocks):
+            in_set[kind].add(f"{group}/{name}")
+    elif args.blocks is not None:
+        parser.error("--blocks needs --set")
+
+    found = find_jobs(args.output_dir, args.kinds, args.systems, args.overwrite, in_set)
     logger.info(f"{len(found)} end states to equilibrate on GPUs {', '.join(args.gpus)}")
     if args.dry_run:
         for path, state in found:
