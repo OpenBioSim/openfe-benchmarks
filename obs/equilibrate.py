@@ -7,6 +7,7 @@ import argparse
 import logging
 from pathlib import Path
 
+import numpy as np
 import sire as sr
 import yaml
 from sire.legacy.IO import setCoordinates
@@ -73,32 +74,61 @@ def run_stage(mols, stage, defaults, lambda_value, platform):
     raise ValueError(f"Unknown stage type '{kind}'")
 
 
-def equilibrate(system, protocol, state, platform):
-    if state == 0:
-        mols = sr.morph.link_to_reference(system)
-    else:
-        mols = sr.morph.link_to_perturbed(system)
-
-    defaults = protocol.get("defaults", {})
-    for i, stage in enumerate(protocol["stages"]):
-        logger.info(f"lambda = {state}: stage {i + 1}/{len(protocol['stages'])} {stage}")
-        mols = run_stage(mols, stage, defaults, float(state), platform)
-
-    coords = sr.io.get_coords_array(mols)
-
+def with_coordinates(system, coords, state, space):
+    """Return a copy of 'system' with 'coords' as the coordinates of end state
+    'state', keeping those of the other end state."""
     result = sr.system.System(setCoordinates(system._system, coords.tolist()))
-    result.set_space(mols.space())
+    result.set_space(space)
 
-    # setCoordinates writes to 'coordinates0' of perturbable molecules, so set both
-    # end states explicitly.
+    # setCoordinates writes to 'coordinates0' of perturbable molecules.
     for mol in result.molecules("property is_perturbable"):
         number = f"molnum {mol.number().value()}"
         cursor = mol.cursor()
-        cursor[f"coordinates{state}"] = mols[number].molecule().property("coordinates")
+        cursor[f"coordinates{state}"] = mol.property("coordinates0")
         cursor[f"coordinates{1 - state}"] = system[number].molecule().property(
             f"coordinates{1 - state}"
         )
         result.update(cursor.commit())
+    return result
+
+
+def rescale(system, space):
+    """Scale the molecule centres of the lambda = 1 end state of 'system' so that it
+    fits in 'space', which has the same shape but a different volume."""
+    scale = (space.volume().value() / system.space().volume().value()) ** (1 / 3)
+    logger.info(f"Rescaling the lambda = 1 box by {scale:.5f} to match lambda = 0")
+
+    coords = sr.io.get_coords_array(sr.morph.link_to_perturbed(system))
+    counts = np.array([mol.num_atoms() for mol in system.molecules()])
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    centres = np.add.reduceat(coords, starts) / counts[:, None]
+    coords += (scale - 1) * np.repeat(centres, counts, axis=0)
+    return with_coordinates(system, coords, 1, space)
+
+
+def run_stages(mols, stages, defaults, state, platform, name="stage"):
+    for i, stage in enumerate(stages):
+        logger.info(f"lambda = {state}: {name} {i + 1}/{len(stages)} {stage}")
+        mols = run_stage(mols, stage, defaults, float(state), platform)
+    return mols
+
+
+def equilibrate(system, protocol, state, platform, box=None):
+    """Equilibrate end state 'state' of 'system'. If 'box' is given, the result is
+    rescaled to it and re-equilibrated at constant volume, so that both end states
+    share the same box, as needed for GCMC."""
+    link = sr.morph.link_to_reference if state == 0 else sr.morph.link_to_perturbed
+    defaults = protocol.get("defaults", {})
+
+    mols = run_stages(link(system), protocol["stages"], defaults, state, platform)
+    result = with_coordinates(system, sr.io.get_coords_array(mols), state, mols.space())
+
+    if box is not None:
+        stages = [{**stage, "pressure": None} for stage in protocol.get("match_box", [])]
+        mols = run_stages(
+            link(rescale(result, box)), stages, defaults, state, platform, "match_box stage"
+        )
+        result = with_coordinates(system, sr.io.get_coords_array(mols), state, mols.space())
 
     return result
 
@@ -116,6 +146,12 @@ def main():
         help="Protocol section to use. Defaults to the input file stem, e.g. 'bound'.",
     )
     parser.add_argument("--end-states", nargs="+", type=int, default=[0, 1])
+    parser.add_argument(
+        "--match-box",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Rescale the lambda = 1 box to the lambda = 0 one, as needed for GCMC.",
+    )
     parser.add_argument("--platform", default=None, help="e.g. cuda, opencl, cpu")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--overwrite", action="store_true")
@@ -140,14 +176,25 @@ def main():
     except KeyError:
         raise ValueError(f"No perturbable molecules in {input_file}")
 
-    for state in args.end_states:
+    for state in sorted(args.end_states):
         if state not in (0, 1):
             raise ValueError("End states must be 0 or 1")
         output = output_dir / f"{input_file.stem}_lambda_{state}.bss"
         if output.exists() and not args.overwrite:
             logger.info(f"Skipping {output}: already exists")
             continue
-        result = equilibrate(system, protocols[leg], state, args.platform)
+
+        box = None
+        if state == 1 and args.match_box:
+            reference = output_dir / f"{input_file.stem}_lambda_0.bss"
+            if not reference.exists():
+                raise ValueError(
+                    f"{reference} is needed to match the lambda = 1 box. Equilibrate "
+                    "lambda = 0 first, or pass --no-match-box."
+                )
+            box = sr.stream.load(str(reference)).space()
+
+        result = equilibrate(system, protocols[leg], state, args.platform, box)
         sr.stream.save(result, str(output))
         logger.info(f"Saved {output}")
 

@@ -1,4 +1,4 @@
-"""Equilibrate every prepared input under an output directory, running one job at a
+"""Equilibrate every prepared input under an output directory, running one input at a
 time on each GPU. Bound legs are run first, since they take longest."""
 
 import argparse
@@ -33,10 +33,13 @@ def find_jobs(root, kinds, systems, overwrite, in_set=None):
                 continue
             if systems and not any(fnmatch.fnmatch(system, s) for s in systems):
                 continue
-            for state in END_STATES[kind]:
-                output = path.with_name(f"{path.stem}_lambda_{state}.bss")
-                if overwrite or not output.exists():
-                    jobs.append((path, state))
+            states = [
+                state
+                for state in END_STATES[kind]
+                if overwrite or not path.with_name(f"{path.stem}_lambda_{state}.bss").exists()
+            ]
+            if states:
+                jobs.append((path, states))
     return sorted(jobs, key=lambda job: job[0].stem != "bound")
 
 
@@ -46,14 +49,17 @@ def worker(gpu, jobs, args, counts, lock):
     env.update({"CUDA_VISIBLE_DEVICES": gpu, "OPENCL_VISIBLE_DEVICES": gpu})
     while True:
         try:
-            path, state = jobs.get_nowait()
+            path, states = jobs.get_nowait()
         except queue.Empty:
             return
-        log = path.with_name(f"{path.stem}_lambda_{state}.log")
-        command = [sys.executable, str(EQUILIBRATE), str(path), "--end-states", str(state)]
-        command += ["--protocol", args.protocol, "--overwrite"]
+        log = path.with_name(f"{path.stem}_equilibrate.log")
+        command = [sys.executable, str(EQUILIBRATE), str(path), "--protocol", args.protocol]
+        command += ["--end-states", *map(str, states), "--overwrite"]
+        if not args.match_box:
+            command.append("--no-match-box")
         if args.platform:
             command += ["--platform", args.platform]
+        state = ", ".join(map(str, states))
 
         start = time.time()
         with open(log, "w") as f:
@@ -85,6 +91,12 @@ def main():
         "--set", default=None, help="Only equilibrate a benchmark set, e.g. curated."
     )
     parser.add_argument("--blocks", nargs="+", default=None, help="Blocks of --set to use.")
+    parser.add_argument(
+        "--match-box",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Rescale the lambda = 1 box to the lambda = 0 one, as needed for GCMC.",
+    )
     parser.add_argument("--platform", default=None, help="e.g. cuda, opencl")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List the jobs and exit.")
@@ -105,10 +117,10 @@ def main():
         parser.error("--blocks needs --set")
 
     found = find_jobs(args.output_dir, args.kinds, args.systems, args.overwrite, in_set)
-    logger.info(f"{len(found)} end states to equilibrate on GPUs {', '.join(args.gpus)}")
+    logger.info(f"{len(found)} inputs to equilibrate on GPUs {', '.join(args.gpus)}")
     if args.dry_run:
-        for path, state in found:
-            print(f"{path} lambda = {state}")
+        for path, states in found:
+            print(f"{path} lambda = {', '.join(map(str, states))}")
         return
 
     jobs = queue.Queue()
@@ -130,7 +142,7 @@ def main():
         for job in counts["failed"]:
             logger.error(f"  {job}")
         raise SystemExit(1)
-    logger.info(f"All {len(found)} end states equilibrated")
+    logger.info(f"All {len(found)} inputs equilibrated")
 
 
 if __name__ == "__main__":

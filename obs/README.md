@@ -142,6 +142,7 @@ python obs/equilibrate.py INPUT [options]
 | `--protocol` | `config/equilibration.yaml` | Staged equilibration protocol. |
 | `--leg` | input file stem | Protocol section to use. |
 | `--end-states` | `0 1` | End states to equilibrate. ABFE only needs `0`. |
+| `--match-box` | on | Rescale the λ = 1 box to the λ = 0 one, as needed for GCMC. Needs `<leg>_lambda_0.bss`. |
 | `--platform` | Sire default | OpenMM platform, e.g. `cuda`, `opencl` or `cpu`. |
 | `--output-dir` | input directory | Where to write `<leg>_lambda_<n>.bss`. |
 | `--overwrite` | off | Regenerate existing outputs. |
@@ -149,7 +150,8 @@ python obs/equilibrate.py INPUT [options]
 ### `equilibrate_all.py`
 
 Equilibrates every prepared input under `--output-dir` that doesn't have an
-output yet, running one end state at a time on each GPU and bound legs first:
+output yet, running one input (both of its end states, in turn) at a time on
+each GPU and bound legs first:
 
 ```
 python obs/equilibrate_all.py --gpus 0 1 2 --systems 'jacs_set/*' 'water_set/*'
@@ -158,7 +160,7 @@ python obs/equilibrate_all.py --gpus 0 1 2 --systems 'jacs_set/*' 'water_set/*'
 `--gpus` takes the indices shown by `nvidia-smi`; you don't need to set
 `CUDA_VISIBLE_DEVICES` yourself. Each job is pinned to its GPU with
 `CUDA_VISIBLE_DEVICES` and `OPENCL_VISIBLE_DEVICES`, and logs to
-`<leg>_lambda_<n>.log` next to its input. `--set` and `--blocks` restrict the jobs
+`<leg>_equilibrate.log` next to its input. `--set` and `--blocks` restrict the jobs
 to a benchmark set, `--kinds rbfe` or `--kinds abfe` to one job type, and
 `--dry-run` lists the jobs. A failed job doesn't stop the others, and re-running picks up
 whatever is left.
@@ -167,7 +169,8 @@ whatever is left.
 
 Each stage in the protocol file is a minimisation or dynamics run. A stage can
 set `restraint` (`heavy`, `backbone`, or any Sire selection) with force constant
-`k`, and overrides the section's `defaults`.
+`k`, and overrides the section's `defaults`. The `match_box` stages are run at
+constant volume after the λ = 1 box has been rescaled.
 
 ## What each step does
 
@@ -187,8 +190,12 @@ set `restraint` (`heavy`, `backbone`, or any Sire selection) with force constant
 - **Equilibrate.** Each end state is linked with `sr.morph.link_to_reference`
   or `sr.morph.link_to_perturbed` and run through the staged protocol in
   `config/equilibration.yaml` at the matching λ. The output for end state *n*
-  holds the equilibrated coordinates in `coordinates<n>` of the perturbable
-  molecule, alongside the equilibrated solvent and box.
+  is the whole perturbable system, with the equilibrated coordinates in
+  `coordinates<n>` of the perturbable molecule, alongside the equilibrated
+  solvent and box. The other end state's coordinates are left as prepared.
+  GCMC needs constant volume, so both end states must share a box: after the
+  λ = 1 run, molecule centres are scaled to fit the λ = 0 box, then the system
+  is minimised and run for 50 ps at constant volume.
 
 ## Output layout
 
