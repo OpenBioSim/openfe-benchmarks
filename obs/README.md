@@ -3,17 +3,50 @@
 Scripts to turn any system in `openfe_benchmarks/data/benchmark_systems` into
 equilibrated inputs for [SOMD2](https://github.com/OpenBioSim/somd2), using the
 same force fields, partial charges and atom mappings as the OpenFE reference
-submissions.
+submissions. Membrane systems (`gpcrs`) aren't supported yet, since solvation
+uses a water box.
 
-## Requirements
+## Installation
 
-An environment with BioSimSpace, Sire, SOMD2, OpenMM, ParmEd, gufe and RDKit,
-with this repository installed (`pip install -e .`). The default protein force
-fields (`amber/ff14SB.xml`, `amber/tip3p_standard.xml`,
-`amber/tip3p_HFE_multivalent.xml`, `amber/phosaa10.xml`) are provided by
-`openmmforcefields`.
+The scripts need the OpenBioSim stack (SOMD2, BioSimSpace and Sire) plus:
+
+- `openmmforcefields`, which provides the OpenFE default protein force fields
+  (`amber/ff14SB.xml`, `amber/tip3p_standard.xml`,
+  `amber/tip3p_HFE_multivalent.xml`, `amber/phosaa10.xml`);
+- `parmed`, `gufe`, `rdkit` and `pyyaml`;
+- this repository, for the benchmark data.
+
+### Conda
+
+```
+conda create -n obs -c conda-forge -c openbiosim \
+    somd2 openmmforcefields parmed gufe rdkit pyyaml
+conda activate obs
+pip install --no-deps -e /path/to/openfe-benchmarks
+```
+
+Use `-c openbiosim/label/dev` for the development versions of the OpenBioSim
+packages.
+
+### Existing pixi environment
+
+From a Sire, BioSimSpace or SOMD2 pixi environment, install the extra packages
+with pip, which leaves `pixi.toml` and `pixi.lock` unchanged:
+
+```
+pixi shell
+pip install openmmforcefields
+pip install -e /path/to/openfe-benchmarks
+```
+
+### GPU platform
+
+If OpenMM has no CUDA platform, pass `--platform opencl` to `equilibrate.py`,
+and set `OPENCL_VISIBLE_DEVICES` to the GPU to use when running SOMD2.
 
 ## Workflow
+
+Run from the root of this repository.
 
 ```
 # 1. Parameterise the protein, ligands and cofactors (cached, so optional).
@@ -35,7 +68,71 @@ somd2 bound_lambda_0.bss --perturbed-system bound_lambda_1.bss --replica-exchang
 ```
 
 Without `--edges` or `--ligands`, every edge or ligand in the system is
-prepared. Existing outputs are skipped unless `--overwrite` is passed.
+prepared. Existing outputs are skipped unless `--overwrite` is passed, so
+interrupted runs can be restarted. Systems are independent, so they can be
+prepared in parallel. Steps 1 and 2 take a few seconds per ligand or edge on a
+single CPU core.
+
+## Usage
+
+Run any script with `--help` for the full list of options.
+
+### Common options
+
+`parameterise.py`, `prepare_rbfe.py` and `prepare_abfe.py` share these:
+
+| Option | Default | Description |
+|---|---|---|
+| `--system-group` | required | Benchmark group, e.g. `jacs_set`. |
+| `--system-name` | required | System within the group, e.g. `tyk2`. |
+| `--output-dir` | `obs_output` | Root output directory. |
+| `--charge-type` | `nagl_openff-gnn-am1bcc-1.0.0.pt` | Partial charges to read from the SDF files. |
+| `--ligand-forcefield` | `openff_unconstrained-2.3.0` | OpenFF force field for ligands and cofactors. |
+| `--protein-forcefields` | OpenFE defaults | OpenMM force field XML files for the protein, crystal waters and ions. |
+| `--overwrite` | off | Regenerate existing outputs. |
+
+Parameters are cached in `parameterised/`. If they were generated with a
+different charge type or force field, the scripts stop rather than mix them;
+pass `--overwrite` to regenerate them.
+
+### `prepare_rbfe.py`
+
+| Option | Default | Description |
+|---|---|---|
+| `--network` | `industry_benchmarks_network`, else `lomap_network` | Ligand network file stem. |
+| `--list-edges` | | Print the edges in the network and exit. |
+| `--edges` | all | Edges to prepare, as `ligA~ligB`. |
+| `--legs` | `bound free` | Legs to prepare. |
+| `--allow-ring-breaking` | off | Allow merges that break rings. |
+| `--allow-ring-size-change` | off | Allow merges that change ring size. |
+| `--bound-padding` | `1.0 nm` | Solvent padding for the bound leg. |
+| `--free-padding` | `1.5 nm` | Solvent padding for the free leg. |
+| `--box-shape` | `dodecahedron` | `cube`, `dodecahedron` or `octahedron`. |
+| `--ion-conc` | `0.15` | NaCl concentration in mol/L. The system is also neutralised. |
+
+### `prepare_abfe.py`
+
+Takes `--ligands` (default: all) and `--legs`, plus the solvation options above.
+
+### `equilibrate.py`
+
+```
+python obs/equilibrate.py INPUT [options]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `INPUT` | | A `bound.bss` or `free.bss` file from step 2. |
+| `--protocol` | `config/equilibration.yaml` | Staged equilibration protocol. |
+| `--leg` | input file stem | Protocol section to use. |
+| `--end-states` | `0 1` | End states to equilibrate. ABFE only needs `0`. |
+| `--platform` | Sire default | OpenMM platform, e.g. `cuda`, `opencl` or `cpu`. |
+| `--output-dir` | input directory | Where to write `<leg>_lambda_<n>.bss`. |
+| `--overwrite` | off | Regenerate existing outputs. |
+
+Each stage in the protocol file is a minimisation or dynamics run. A stage can
+set `restraint` (`heavy`, `backbone`, or any Sire selection) with force constant
+`k`, and overrides the section's `defaults`.
 
 ## What each step does
 
@@ -62,10 +159,12 @@ prepared. Existing outputs are skipped unless `--overwrite` is passed.
 
 ```
 obs_output/<system_group>/<system_name>/
-  parameterised/            protein.prm7/rst7, ligands/*.bss, cofactors.bss
+  parameterised/            protein.prm7/rst7, ligands/*.bss, cofactors.bss, metadata.json
   rbfe/<ligA>~<ligB>/       bound.bss, free.bss, edge.json, *_lambda_{0,1}.bss
   abfe/<ligand>/            bound.bss, free.bss, ligand.json, *_lambda_0.bss
 ```
 
-`edge.json` records the mapping, the net charge of each end state, and the
-solvation settings.
+`edge.json` records the mapping, the net charge of each end state and the
+solvation settings; `ligand.json` records the same for ABFE. These files and
+`metadata.json` also record provenance: the openfe-benchmarks commit, whether
+its data had local changes, and the versions of the packages used.
