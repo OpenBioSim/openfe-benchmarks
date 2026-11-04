@@ -2,7 +2,9 @@
 # set doesn't change when systems are added upstream.
 #
 # Each block has 'rbfe' and/or 'abfe' lists of 'group/name' systems. A block can
-# also set 'allow_ring_breaking' and 'allow_ring_size_change' for its RBFE edges.
+# also set 'allow_ring_breaking' and 'allow_ring_size_change' for its RBFE edges,
+# and 'mappings' to take its edges from config/mappings/<name>.json rather than
+# the OpenFE network.
 
 blocks:
   A:
@@ -46,9 +48,18 @@ blocks:
       - water_set/urokinase
 
   D:
-    description: Ring breaking. Provisional, pending the existing ring-breaking data.
-    allow_ring_breaking: true
-    allow_ring_size_change: true
+    description: >-
+      Ring breaking, using hand-curated mappings from scaffold-hopping-fep-benchmark
+      translated onto the OpenFE ligands.
+    mappings: ring_breaking
+    rbfe:
+      - scaffold_hopping/chk1
+      - scaffold_hopping/fxa
+
+  D_conv:
+    description: >-
+      Conventional OpenFE mappings for the ring-breaking systems, to compare
+      against block D, plus the macrocycles until they have ring-breaking mappings.
     rbfe:
       - bayer_macrocycles/brd4
       - bayer_macrocycles/ftase

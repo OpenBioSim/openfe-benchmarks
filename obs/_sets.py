@@ -18,6 +18,15 @@ def set_file(name):
     return path
 
 
+def mappings_file(name):
+    path = Path(name)
+    if path.suffix != ".json":
+        path = CONFIG_DIR / "mappings" / f"{name}.json"
+    if not path.exists():
+        raise ValueError(f"No mappings file {path}")
+    return path
+
+
 def load_set(name, blocks=None):
     """Return a list of (block, kind, group, system, options) entries."""
     data = yaml.safe_load(set_file(name).read_text())["blocks"]
@@ -30,6 +39,8 @@ def load_set(name, blocks=None):
     entries = []
     for block, spec in data.items():
         options = {k: bool(spec.get(k, False)) for k in MERGE_OPTIONS}
+        if spec.get("mappings"):
+            options["mappings"] = str(mappings_file(spec["mappings"]))
         for kind in KINDS:
             for system in spec.get(kind, []):
                 group, _, name = system.partition("/")

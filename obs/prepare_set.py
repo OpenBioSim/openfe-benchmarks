@@ -30,7 +30,11 @@ def commands(entries, extra):
             raise ValueError(f"No system {group}/{name} (block {block})")
         command = [sys.executable, str(SCRIPTS[kind])]
         command += ["--system-group", group, "--system-name", name]
-        command += [f"--{k.replace('_', '-')}" for k, v in options.items() if v]
+        for key, value in options.items():
+            if value is True:
+                command.append(f"--{key.replace('_', '-')}")
+            elif value:
+                command += [f"--{key.replace('_', '-')}", value]
         command += extra
         if command not in by_system[(group, name)]:
             by_system[(group, name)].append(command)

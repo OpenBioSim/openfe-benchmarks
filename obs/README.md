@@ -84,6 +84,22 @@ python obs/equilibrate_all.py --set curated --gpus 0 1 2
 python obs/equilibrate_all.py --set curated --blocks A G --gpus 0 1 2
 ```
 
+A block can take its edges from a mappings file in `config/mappings/` rather
+than the OpenFE network. `ring_breaking.json` holds ring-breaking edges from the
+scaffold-hopping-fep-benchmark repository, with their hand-curated mappings
+translated onto the OpenFE ligands by `translate_mappings.py`:
+
+```
+python obs/translate_mappings.py path/to/networks/zou_network.json \
+    --edges chk1_c20_to_c17 --system-group scaffold_hopping --system-name chk1 \
+    --output obs/config/mappings/ring_breaking.json
+```
+
+Ligands are matched by connectivity, and atoms by the isomorphism that best
+overlays the two poses. The script checks that the translated mapping breaks the
+same bonds as the original. Edges from a mappings file are prepared with
+`prepare_rbfe.py --mappings FILE`, and written to `rbfe/<ligA>~<ligB>_rb/`.
+
 `prepare_set.py` runs `--jobs` systems at once, logging each to
 `logs/<group>_<system>.log`, and passes any options it doesn't recognise (e.g.
 `--output-dir`, `--overwrite`) on to the preparation scripts. Ring-breaking

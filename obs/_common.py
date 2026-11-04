@@ -88,6 +88,8 @@ def load_network(data, network=None):
 
 
 def edge_name(edge):
+    if getattr(edge, "name", None):
+        return edge.name
     return f"{safe_name(edge.componentA.name)}~{safe_name(edge.componentB.name)}"
 
 

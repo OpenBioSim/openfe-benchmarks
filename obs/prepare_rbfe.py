@@ -1,8 +1,12 @@
 """Create solvated, merged bound and free systems for the edges of an
-openfe-benchmarks ligand network, using the atom mappings stored in the network."""
+openfe-benchmarks ligand network, using the atom mappings stored in the network,
+or for the edges of a mappings file (see translate_mappings.py)."""
 
 import argparse
+import json
 import tempfile
+from pathlib import Path
+from types import SimpleNamespace
 
 import BioSimSpace as BSS
 
@@ -29,11 +33,36 @@ def merge_edge(edge, param_dir, allow_ring_breaking, allow_ring_size_change):
     return merged, lig_a, lig_b, mapping
 
 
+def load_mappings(path, system):
+    """Return the edges of a mappings file for a system, shaped like gufe edges."""
+    edges = []
+    for entry in json.loads(Path(path).read_text()):
+        if entry["system"] != system:
+            continue
+        edges.append(
+            SimpleNamespace(
+                name=entry["id"],
+                componentA=SimpleNamespace(name=entry["ligand_a"]),
+                componentB=SimpleNamespace(name=entry["ligand_b"]),
+                componentA_to_componentB=entry["mapping"],
+                annotations={"metadata": entry["metadata"], "source": entry["source"]},
+                allow_ring_breaking=entry.get("allow_ring_breaking", False),
+                allow_ring_size_change=entry.get("allow_ring_size_change", False),
+            )
+        )
+    if not edges:
+        raise ValueError(f"No edges for {system} in {path}")
+    return edges
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     _common.add_common_args(parser)
     _common.add_solvation_args(parser)
     parser.add_argument("--network", default=None, help="Network file stem.")
+    parser.add_argument(
+        "--mappings", default=None, help="Take the edges from a mappings file instead."
+    )
     parser.add_argument(
         "--edges", nargs="+", default=None, help="Edges to prepare, as 'ligA~ligB'."
     )
@@ -46,8 +75,13 @@ def main():
     _common.setup_logging()
 
     data = _common.get_benchmark(args.system_group, args.system_name, args.charge_type)
-    network = _common.load_network(data, args.network)
-    edges = sorted(network.edges, key=_common.edge_name)
+    if args.mappings is not None:
+        network = None
+        system = f"{args.system_group}/{args.system_name}"
+        edges = sorted(load_mappings(args.mappings, system), key=_common.edge_name)
+    else:
+        network = _common.load_network(data, args.network)
+        edges = sorted(network.edges, key=_common.edge_name)
 
     if args.list_edges:
         for edge in edges:
@@ -62,8 +96,14 @@ def main():
         edges = [names[n] for n in args.edges]
 
     sdf = _common.read_sdf(data.ligands[args.charge_type])
-    for node in network.nodes:
-        _common.check_same_molecule(sdf[node.name], node)
+    if network is not None:
+        for node in network.nodes:
+            _common.check_same_molecule(sdf[node.name], node)
+    else:
+        for edge in edges:
+            for name in (edge.componentA.name, edge.componentB.name):
+                if name not in sdf:
+                    raise ValueError(f"Ligand '{name}' of edge {edge.name} is not in {system}")
 
     param_dir = _common.parameterise_system(args, data)
     receptor = _common.load_receptor(param_dir) if "bound" in args.legs else None
@@ -89,7 +129,10 @@ def main():
 
 def prepare_edge(args, edge, out, param_dir, receptor):
     merged, lig_a, lig_b, mapping = merge_edge(
-        edge, param_dir, args.allow_ring_breaking, args.allow_ring_size_change
+        edge,
+        param_dir,
+        args.allow_ring_breaking or getattr(edge, "allow_ring_breaking", False),
+        args.allow_ring_size_change or getattr(edge, "allow_ring_size_change", False),
     )
 
     for leg in args.legs:
