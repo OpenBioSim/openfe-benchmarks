@@ -14,6 +14,16 @@ from sire.legacy.IO import setCoordinates
 
 logger = logging.getLogger("obs")
 
+# The SOMD2 defaults.
+CONSTRAINT = "h-bonds"
+PERTURBABLE_CONSTRAINT = "h-bonds-not-heavy-perturbed"
+
+# Constraints can fail for perturbable molecules with many ghost atoms. If a
+# dynamics stage blows up, run briefly without them and try again.
+INSTABILITY_ERRORS = ("NaN", "kinetic energy has exceeded")
+FALLBACK_RUNTIME = "10 ps"
+FALLBACK_TIMESTEP = "1 fs"
+
 
 def restraint_atoms(mols, kind):
     if kind == "heavy":
@@ -46,8 +56,10 @@ def run_stage(mols, stage, defaults, lambda_value, platform):
     options = {
         "lambda_value": lambda_value,
         "restraints": restraints,
-        "constraint": stage.get("constraint", "h-bonds"),
-        "perturbable_constraint": stage.get("perturbable_constraint", "h-bonds"),
+        "constraint": stage.get("constraint", CONSTRAINT),
+        "perturbable_constraint": stage.get(
+            "perturbable_constraint", PERTURBABLE_CONSTRAINT
+        ),
         "cutoff": stage.get("cutoff", "9 A"),
         "cutoff_type": "PME",
     }
@@ -62,16 +74,37 @@ def run_stage(mols, stage, defaults, lambda_value, platform):
         return m.commit()
 
     if kind == "dynamics":
-        d = mols.dynamics(
-            timestep=stage["timestep"],
-            temperature=stage["temperature"],
-            pressure=stage.get("pressure"),
-            **options,
-        )
-        d.run(stage["runtime"], save_frequency=0, auto_fix_minimise=False)
-        return d.commit()
+        try:
+            return run_dynamics(mols, stage, options)
+        except Exception as e:
+            if not any(text in str(e) for text in INSTABILITY_ERRORS):
+                raise
+            logger.warning(
+                f"Dynamics failed ({str(e).splitlines()[0]}). Running "
+                f"{stage.get('fallback_runtime', FALLBACK_RUNTIME)} without constraints "
+                "on perturbable molecules, then retrying."
+            )
+
+        unconstrained = {
+            **stage,
+            "runtime": stage.get("fallback_runtime", FALLBACK_RUNTIME),
+            "timestep": stage.get("fallback_timestep", FALLBACK_TIMESTEP),
+        }
+        mols = run_dynamics(mols, unconstrained, {**options, "perturbable_constraint": "none"})
+        return run_dynamics(mols, stage, options)
 
     raise ValueError(f"Unknown stage type '{kind}'")
+
+
+def run_dynamics(mols, stage, options):
+    d = mols.dynamics(
+        timestep=stage["timestep"],
+        temperature=stage["temperature"],
+        pressure=stage.get("pressure"),
+        **options,
+    )
+    d.run(stage["runtime"], save_frequency=0, auto_fix_minimise=False)
+    return d.commit()
 
 
 def with_coordinates(system, coords, state, space):

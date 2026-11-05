@@ -223,6 +223,12 @@ constant volume after the λ = 1 box has been rescaled.
   is the whole perturbable system, with the equilibrated coordinates in
   `coordinates<n>` of the perturbable molecule, alongside the equilibrated
   solvent and box. The other end state's coordinates are left as prepared.
+  Dynamics uses SOMD2's default constraints (`h-bonds`, and
+  `h-bonds-not-heavy-perturbed` for perturbable molecules). If a dynamics
+  stage blows up, which can happen when constraints meet many ghost atoms, it
+  is restarted with 10 ps at 1 fs without constraints on perturbable
+  molecules, then retried with constraints (`fallback_runtime` and
+  `fallback_timestep` in the protocol override these).
   GCMC needs constant volume, so both end states must share a box: after the
   λ = 1 run, molecule centres are scaled to fit the λ = 0 box, then the system
   is minimised and run for 50 ps at constant volume.
