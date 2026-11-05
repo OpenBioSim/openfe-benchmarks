@@ -6,6 +6,7 @@ see translate_mappings.py)."""
 import argparse
 import json
 import tempfile
+import time
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,39 +22,38 @@ logger = _common.logger
 RELAXED_RING_WARNING = "ringMatchesRingOnly"
 
 
-def bss_mapping(lig_a, lig_b):
+def bss_mapping(lig_a, lig_b, max_scoring_matches):
     """Map with BioSimSpace, re-mapping with ring matching relaxed if BioSimSpace
     warns that this gives a larger common core."""
+    start = time.time()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        mapping = BSS.Align.matchAtoms(lig_a, lig_b)
+        mapping = BSS.Align.matchAtoms(
+            lig_a, lig_b, max_scoring_matches=max_scoring_matches
+        )
     messages = [str(w.message) for w in caught]
 
     mcs_kwargs = {}
     if any(RELAXED_RING_WARNING in m for m in messages):
         mcs_kwargs = {"ringMatchesRingOnly": False}
         logger.info(f"Re-mapping with {mcs_kwargs}: {len(mapping)} mapped atoms before")
-        mapping = BSS.Align.matchAtoms(lig_a, lig_b, mcs_kwargs=mcs_kwargs)
-    logger.info(f"{len(mapping)} mapped atoms")
-    return mapping, {"mcs_kwargs": mcs_kwargs, "warnings": messages}
+        mapping = BSS.Align.matchAtoms(
+            lig_a, lig_b, max_scoring_matches=max_scoring_matches, mcs_kwargs=mcs_kwargs
+        )
+    logger.info(f"{len(mapping)} mapped atoms in {time.time() - start:.1f} s")
+    return mapping, {
+        "mcs_kwargs": mcs_kwargs,
+        "max_scoring_matches": max_scoring_matches,
+        "warnings": messages,
+    }
 
 
 def mapper(args, edge):
     return "file" if hasattr(edge, "allow_ring_breaking") else args.mapper
 
 
-def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_change):
-    lig_a = _common.load_ligand(param_dir, edge.componentA.name)
-    lig_b = _common.load_ligand(param_dir, edge.componentB.name)
-
-    details = {"mapper": method}
-    if method == "biosimspace":
-        mapping, extra = bss_mapping(lig_a, lig_b)
-        details.update(extra)
-    else:
-        mapping = {int(a): int(b) for a, b in edge.componentA_to_componentB.items()}
+def merge(lig_a, lig_b, mapping, allow_ring_breaking, allow_ring_size_change):
     inverse = {b: a for a, b in mapping.items()}
-
     lig_b = BSS.Align.rmsdAlign(lig_b, lig_a, inverse)
     merged = BSS.Align.merge(
         lig_a,
@@ -62,6 +62,30 @@ def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_cha
         allow_ring_breaking=allow_ring_breaking,
         allow_ring_size_change=allow_ring_size_change,
     )
+    return merged, lig_b
+
+
+def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_change, max_matches):
+    lig_a = _common.load_ligand(param_dir, edge.componentA.name)
+    lig_b = _common.load_ligand(param_dir, edge.componentB.name)
+    network_mapping = {int(a): int(b) for a, b in edge.componentA_to_componentB.items()}
+    flags = (allow_ring_breaking, allow_ring_size_change)
+
+    details = {"mapper": method}
+    if method != "biosimspace":
+        merged, lig_b = merge(lig_a, lig_b, network_mapping, *flags)
+        return merged, lig_a, lig_b, network_mapping, details
+
+    mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
+    details.update(extra)
+    try:
+        merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
+    except BSS._Exceptions.IncompatibleError as e:
+        # E.g. an MCS across rings of different sizes, which Kartograf filters out.
+        logger.warning(f"BioSimSpace mapping can't be merged ({e}). Using the OpenFE mapping.")
+        details["fallback"] = {"mapper": "openfe", "reason": str(e)}
+        mapping = network_mapping
+        merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
     return merged, lig_a, lig_b, mapping, details
 
 
@@ -97,6 +121,13 @@ def main():
         default="biosimspace",
         choices=["biosimspace", "openfe"],
         help="Map atoms with BioSimSpace, or use the mappings stored in the network.",
+    )
+    parser.add_argument(
+        "--max-scoring-matches",
+        type=int,
+        default=100,
+        help="Candidate MCS matches that BioSimSpace scores. Its default of 1000 can "
+        "take minutes per edge for large ligands.",
     )
     parser.add_argument(
         "--mappings", default=None, help="Take the edges from a mappings file instead."
@@ -184,6 +215,7 @@ def prepare_edge(args, edge, out, param_dir, receptor):
         param_dir,
         args.allow_ring_breaking or getattr(edge, "allow_ring_breaking", False),
         args.allow_ring_size_change or getattr(edge, "allow_ring_size_change", False),
+        args.max_scoring_matches,
     )
 
     for leg in args.legs:
