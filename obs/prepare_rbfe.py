@@ -125,9 +125,9 @@ def main():
     parser.add_argument(
         "--max-scoring-matches",
         type=int,
-        default=100,
-        help="Candidate MCS matches that BioSimSpace scores. Its default of 1000 can "
-        "take minutes per edge for large ligands.",
+        default=1000,
+        help="Candidate MCS matches that BioSimSpace scores. Large values are slow "
+        "with BioSimSpace versions before the fix for issue #561.",
     )
     parser.add_argument(
         "--mappings", default=None, help="Take the edges from a mappings file instead."
@@ -182,7 +182,9 @@ def main():
     for edge in edges:
         name = _common.edge_name(edge)
         out = root / name
-        if not args.overwrite and is_prepared(out, args.legs, mapper(args, edge)):
+        if not args.overwrite and is_prepared(
+            out, args.legs, mapper(args, edge), args.max_scoring_matches
+        ):
             logger.info(f"Skipping {name}: already prepared")
             continue
         out.mkdir(parents=True, exist_ok=True)
@@ -200,12 +202,17 @@ def main():
     _common.report_failures(failed, len(edges), "edges")
 
 
-def is_prepared(out, legs, method):
-    """Whether the edge has been prepared, with the same mapper."""
+def is_prepared(out, legs, method, max_scoring_matches):
+    """Whether the edge has been prepared with the same mapping settings."""
     info = out / "edge.json"
     if not info.exists() or not all((out / f"{leg}.bss").exists() for leg in legs):
         return False
-    return json.loads(info.read_text()).get("mapping_method", {}).get("mapper") == method
+    details = json.loads(info.read_text()).get("mapping_method", {})
+    if details.get("mapper") != method:
+        return False
+    if method == "biosimspace":
+        return details.get("max_scoring_matches") == max_scoring_matches
+    return True
 
 
 def prepare_edge(args, edge, out, param_dir, receptor):

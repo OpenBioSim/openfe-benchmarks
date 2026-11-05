@@ -208,12 +208,12 @@ constant volume after the λ = 1 box has been rescaled.
   their own. `edge.json` records which was used. The SDF ligands are checked
   against the network components atom by atom. `--allow-ring-breaking` and
   `--allow-ring-size-change` are passed to `BSS.Align.merge` for ring-breaking
-  edges. An edge prepared with a different mapper is re-prepared, and its old
-  equilibrated outputs are removed. If the BioSimSpace mapping can't be merged,
-  e.g. because it maps across rings of different sizes, the OpenFE mapping is
-  used instead and recorded as a fallback in `edge.json`. BioSimSpace scores
-  `--max-scoring-matches` (100) candidate matches rather than its default of
-  1000, which can take minutes per edge for large ligands.
+  edges. An edge prepared with a different mapper or `--max-scoring-matches` is
+  re-prepared, and its old equilibrated outputs are removed. If the BioSimSpace
+  mapping can't be merged, e.g. because it maps across rings of different sizes,
+  the OpenFE mapping is used instead and recorded as a fallback in `edge.json`.
+  Use a BioSimSpace version with the fix for issue #561, since scoring the
+  default 1000 candidate matches could otherwise take minutes per edge.
 - **Solvate.** TIP3P with 0.15 M NaCl, neutralised. The box width follows the
   `openmm.app.Modeller` padding rule, with 1.0 nm padding for the bound leg and
   1.5 nm for the free leg, as in the OpenFE reference submissions.
