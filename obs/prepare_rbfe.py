@@ -1,10 +1,12 @@
 """Create solvated, merged bound and free systems for the edges of an
-openfe-benchmarks ligand network, using the atom mappings stored in the network,
-or for the edges of a mappings file (see translate_mappings.py)."""
+openfe-benchmarks ligand network. Atoms are mapped with BioSimSpace by default,
+or taken from the network ('--mapper openfe') or a mappings file ('--mappings',
+see translate_mappings.py)."""
 
 import argparse
 import json
 import tempfile
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,11 +17,41 @@ import _common
 logger = _common.logger
 
 
-def merge_edge(edge, param_dir, allow_ring_breaking, allow_ring_size_change):
+# BioSimSpace warns with this text when relaxing ring matching gives a larger MCS.
+RELAXED_RING_WARNING = "ringMatchesRingOnly"
+
+
+def bss_mapping(lig_a, lig_b):
+    """Map with BioSimSpace, re-mapping with ring matching relaxed if BioSimSpace
+    warns that this gives a larger common core."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mapping = BSS.Align.matchAtoms(lig_a, lig_b)
+    messages = [str(w.message) for w in caught]
+
+    mcs_kwargs = {}
+    if any(RELAXED_RING_WARNING in m for m in messages):
+        mcs_kwargs = {"ringMatchesRingOnly": False}
+        logger.info(f"Re-mapping with {mcs_kwargs}: {len(mapping)} mapped atoms before")
+        mapping = BSS.Align.matchAtoms(lig_a, lig_b, mcs_kwargs=mcs_kwargs)
+    logger.info(f"{len(mapping)} mapped atoms")
+    return mapping, {"mcs_kwargs": mcs_kwargs, "warnings": messages}
+
+
+def mapper(args, edge):
+    return "file" if hasattr(edge, "allow_ring_breaking") else args.mapper
+
+
+def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_change):
     lig_a = _common.load_ligand(param_dir, edge.componentA.name)
     lig_b = _common.load_ligand(param_dir, edge.componentB.name)
 
-    mapping = {int(a): int(b) for a, b in edge.componentA_to_componentB.items()}
+    details = {"mapper": method}
+    if method == "biosimspace":
+        mapping, extra = bss_mapping(lig_a, lig_b)
+        details.update(extra)
+    else:
+        mapping = {int(a): int(b) for a, b in edge.componentA_to_componentB.items()}
     inverse = {b: a for a, b in mapping.items()}
 
     lig_b = BSS.Align.rmsdAlign(lig_b, lig_a, inverse)
@@ -30,7 +62,7 @@ def merge_edge(edge, param_dir, allow_ring_breaking, allow_ring_size_change):
         allow_ring_breaking=allow_ring_breaking,
         allow_ring_size_change=allow_ring_size_change,
     )
-    return merged, lig_a, lig_b, mapping
+    return merged, lig_a, lig_b, mapping, details
 
 
 def load_mappings(path, system):
@@ -60,6 +92,12 @@ def main():
     _common.add_common_args(parser)
     _common.add_solvation_args(parser)
     parser.add_argument("--network", default=None, help="Network file stem.")
+    parser.add_argument(
+        "--mapper",
+        default="biosimspace",
+        choices=["biosimspace", "openfe"],
+        help="Map atoms with BioSimSpace, or use the mappings stored in the network.",
+    )
     parser.add_argument(
         "--mappings", default=None, help="Take the edges from a mappings file instead."
     )
@@ -113,10 +151,14 @@ def main():
     for edge in edges:
         name = _common.edge_name(edge)
         out = root / name
-        if not args.overwrite and all((out / f"{leg}.bss").exists() for leg in args.legs):
+        if not args.overwrite and is_prepared(out, args.legs, mapper(args, edge)):
             logger.info(f"Skipping {name}: already prepared")
             continue
         out.mkdir(parents=True, exist_ok=True)
+        (out / "edge.json").unlink(missing_ok=True)
+        for leg in args.legs:
+            for stale in out.glob(f"{leg}_lambda_*"):
+                stale.unlink()
         logger.info(f"Preparing {name}")
         try:
             prepare_edge(args, edge, out, param_dir, receptor)
@@ -127,9 +169,18 @@ def main():
     _common.report_failures(failed, len(edges), "edges")
 
 
+def is_prepared(out, legs, method):
+    """Whether the edge has been prepared, with the same mapper."""
+    info = out / "edge.json"
+    if not info.exists() or not all((out / f"{leg}.bss").exists() for leg in legs):
+        return False
+    return json.loads(info.read_text()).get("mapping_method", {}).get("mapper") == method
+
+
 def prepare_edge(args, edge, out, param_dir, receptor):
-    merged, lig_a, lig_b, mapping = merge_edge(
+    merged, lig_a, lig_b, mapping, details = merge_edge(
         edge,
+        mapper(args, edge),
         param_dir,
         args.allow_ring_breaking or getattr(edge, "allow_ring_breaking", False),
         args.allow_ring_size_change or getattr(edge, "allow_ring_size_change", False),
@@ -162,6 +213,7 @@ def prepare_edge(args, edge, out, param_dir, receptor):
             "charge_a": _common.net_charge(lig_a),
             "charge_b": _common.net_charge(lig_b),
             "mapping": mapping,
+            "mapping_method": details,
             "annotations": dict(edge.annotations),
             "box_shape": args.box_shape,
             "bound_padding": args.bound_padding,

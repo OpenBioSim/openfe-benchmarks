@@ -132,6 +132,8 @@ pass `--overwrite` to regenerate them.
 | Option | Default | Description |
 |---|---|---|
 | `--network` | `industry_benchmarks_network`, else `lomap_network` | Ligand network file stem. |
+| `--mapper` | `biosimspace` | Map atoms with BioSimSpace, or use the network's mappings (`openfe`). |
+| `--mappings` | | Take the edges and mappings from a mappings file instead of the network. |
 | `--list-edges` | | Print the edges in the network and exit. |
 | `--edges` | all | Edges to prepare, as `ligA~ligB`. |
 | `--legs` | `bound free` | Legs to prepare. |
@@ -196,10 +198,18 @@ constant volume after the λ = 1 box has been rescaled.
   cofactors are parameterised with OpenFF (`openff_unconstrained-2.3.0` by
   default), then their charges are replaced by the ones in the SDF file
   (`--charge-type`, NAGL by default).
-- **Merge.** Edges use the Kartograf mappings stored in the network file. The
-  SDF ligands are checked against the network components atom by atom.
-  `--allow-ring-breaking` and `--allow-ring-size-change` are passed to
-  `BSS.Align.merge` for ring-breaking edges.
+- **Map and merge.** The network decides which ligand pairs are run, but the
+  atoms are mapped with `BSS.Align.matchAtoms`, since the OpenFE (Kartograf)
+  mappings are designed for OpenFE's hybrid topology and avoid perturbations,
+  such as constraint changes, that SOMD2 handles. If BioSimSpace warns that
+  relaxing `ringMatchesRingOnly` gives a larger common core, the edge is
+  re-mapped with `mcs_kwargs={"ringMatchesRingOnly": False}`. `--mapper openfe`
+  uses the network mappings instead, and edges from a mappings file always use
+  their own. `edge.json` records which was used. The SDF ligands are checked
+  against the network components atom by atom. `--allow-ring-breaking` and
+  `--allow-ring-size-change` are passed to `BSS.Align.merge` for ring-breaking
+  edges. An edge prepared with a different mapper is re-prepared, and its old
+  equilibrated outputs are removed.
 - **Solvate.** TIP3P with 0.15 M NaCl, neutralised. The box width follows the
   `openmm.app.Modeller` padding rule, with 1.0 nm padding for the bound leg and
   1.5 nm for the free leg, as in the OpenFE reference submissions.
