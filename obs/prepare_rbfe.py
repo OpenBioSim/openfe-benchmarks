@@ -12,6 +12,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import BioSimSpace as BSS
+import numpy as np
+import sire as sr
 
 import _common
 
@@ -65,6 +67,45 @@ def merge(lig_a, lig_b, mapping, allow_ring_breaking, allow_ring_size_change):
     return merged, lig_b
 
 
+# Atoms closer than this give a NaN energy. Ghosts that close are moved by
+# NUDGE_DISTANCE, which has no effect at the end state where they are ghosts.
+COINCIDENT_DISTANCE = 0.01
+NUDGE_DISTANCE = 0.05
+
+
+def nudge_coincident_ghosts(merged):
+    """Move ghost atoms that sit on another atom of the merged molecule, in the
+    coordinates of each end state. Returns the moved atoms for each end state."""
+    mol = merged._sire_object
+    rng = np.random.default_rng(0)
+    nudged = {}
+    cursor = mol.cursor()
+    for state in (0, 1):
+        coords = mol.property(f"coordinates{state}").to_vector()
+        x = np.array([[c.x().value(), c.y().value(), c.z().value()] for c in coords])
+        ghosts = [
+            i for i, atom in enumerate(mol.atoms()) if atom.property(f"ambertype{state}") == "du"
+        ]
+        moved = []
+        for i in ghosts:
+            while True:
+                d = np.linalg.norm(x - x[i], axis=1)
+                d[i] = np.inf
+                if d.min() >= COINCIDENT_DISTANCE:
+                    break
+                v = rng.normal(size=3)
+                x[i] += NUDGE_DISTANCE * v / np.linalg.norm(v)
+                if i not in moved:
+                    moved.append(i)
+        for i in moved:
+            cursor.atoms()[i][f"coordinates{state}"] = sr.maths.Vector(*x[i])
+        if moved:
+            nudged[state] = moved
+            logger.info(f"Moved {len(moved)} coincident ghost atoms at lambda = {state}")
+    merged._sire_object = cursor.commit()
+    return nudged
+
+
 def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_change, max_matches):
     lig_a = _common.load_ligand(param_dir, edge.componentA.name)
     lig_b = _common.load_ligand(param_dir, edge.componentB.name)
@@ -73,19 +114,25 @@ def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_cha
 
     details = {"mapper": method}
     if method != "biosimspace":
-        merged, lig_b = merge(lig_a, lig_b, network_mapping, *flags)
-        return merged, lig_a, lig_b, network_mapping, details
-
-    mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
-    details.update(extra)
-    try:
-        merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
-    except BSS._Exceptions.IncompatibleError as e:
-        # E.g. an MCS across rings of different sizes, which Kartograf filters out.
-        logger.warning(f"BioSimSpace mapping can't be merged ({e}). Using the OpenFE mapping.")
-        details["fallback"] = {"mapper": "openfe", "reason": str(e)}
         mapping = network_mapping
         merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
+    else:
+        mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
+        details.update(extra)
+        try:
+            merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
+        except BSS._Exceptions.IncompatibleError as e:
+            # E.g. an MCS across rings of different sizes, which Kartograf filters out.
+            logger.warning(
+                f"BioSimSpace mapping can't be merged ({e}). Using the OpenFE mapping."
+            )
+            details["fallback"] = {"mapper": "openfe", "reason": str(e)}
+            mapping = network_mapping
+            merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
+
+    nudged = nudge_coincident_ghosts(merged)
+    if nudged:
+        details["nudged_ghosts"] = {str(k): v for k, v in nudged.items()}
     return merged, lig_a, lig_b, mapping, details
 
 

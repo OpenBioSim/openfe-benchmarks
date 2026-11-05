@@ -212,6 +212,10 @@ constant volume after the λ = 1 box has been rescaled.
   re-prepared, and its old equilibrated outputs are removed. If the BioSimSpace
   mapping can't be merged, e.g. because it maps across rings of different sizes,
   the OpenFE mapping is used instead and recorded as a fallback in `edge.json`.
+  Ghost atoms that sit exactly on another atom of the merged ligand, which
+  happens when the OpenFE poses share a group that can't be mapped, are moved
+  by 0.05 Å, since coincident atoms give a NaN energy. These are recorded as
+  `nudged_ghosts` in `edge.json`.
   Use a BioSimSpace version with the fix for issue #561, since scoring the
   default 1000 candidate matches could otherwise take minutes per edge.
 - **Solvate.** TIP3P with 0.15 M NaCl, neutralised. The box width follows the
