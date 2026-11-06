@@ -148,6 +148,19 @@ def reduce_box(system):
         system.set_space(space)
 
 
+def modify_ghosts(system):
+    """Return a copy of 'system' with Ghostly's modifications to the bonded terms of
+    ghost atoms, as SOMD2 applies them. Only the copy is simulated, so the saved
+    system is unmodified and SOMD2 can apply its own."""
+    from ghostly import modify
+
+    try:
+        return modify(system)[0]
+    except Exception:
+        # Angle optimisation can occasionally fail, so try once more, as SOMD2 does.
+        return modify(system)[0]
+
+
 def run_stages(mols, stages, defaults, state, platform, name="stage"):
     for i, stage in enumerate(stages):
         logger.info(f"lambda = {state}: {name} {i + 1}/{len(stages)} {stage}")
@@ -155,20 +168,26 @@ def run_stages(mols, stages, defaults, state, platform, name="stage"):
     return mols
 
 
-def equilibrate(system, protocol, state, platform, box=None):
+def equilibrate(system, protocol, state, platform, box=None, ghost_modifications=True):
     """Equilibrate end state 'state' of 'system'. If 'box' is given, the result is
     rescaled to it and re-equilibrated at constant volume, so that both end states
     share the same box, as needed for GCMC."""
     link = sr.morph.link_to_reference if state == 0 else sr.morph.link_to_perturbed
     defaults = protocol.get("defaults", {})
+    prepare = modify_ghosts if ghost_modifications else (lambda s: s)
 
-    mols = run_stages(link(system), protocol["stages"], defaults, state, platform)
+    mols = run_stages(link(prepare(system)), protocol["stages"], defaults, state, platform)
     result = with_coordinates(system, sr.io.get_coords_array(mols), state, mols.space())
 
     if box is not None:
         stages = [{**stage, "pressure": None} for stage in protocol.get("match_box", [])]
         mols = run_stages(
-            link(rescale(result, box)), stages, defaults, state, platform, "match_box stage"
+            link(prepare(rescale(result, box))),
+            stages,
+            defaults,
+            state,
+            platform,
+            "match_box stage",
         )
         result = with_coordinates(system, sr.io.get_coords_array(mols), state, mols.space())
 
@@ -193,6 +212,12 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Rescale the lambda = 1 box to the lambda = 0 one, as needed for GCMC.",
+    )
+    parser.add_argument(
+        "--ghost-modifications",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Apply Ghostly's modifications to ghost atom bonded terms, as SOMD2 does.",
     )
     parser.add_argument("--platform", default=None, help="e.g. cuda, opencl, cpu")
     parser.add_argument("--output-dir", default=None)
@@ -237,7 +262,9 @@ def main():
                 )
             box = sr.stream.load(str(reference)).space()
 
-        result = equilibrate(system, protocols[leg], state, args.platform, box)
+        result = equilibrate(
+            system, protocols[leg], state, args.platform, box, args.ghost_modifications
+        )
         sr.stream.save(result, str(output))
         logger.info(f"Saved {output}")
 
