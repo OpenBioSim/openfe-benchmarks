@@ -15,8 +15,9 @@ bound:
     - {type: minimisation}
     - {type: dynamics, runtime: 5 ps, timestep: 1 fs, pressure: 1 bar, restraint: heavy, k: 1 kcal mol-1 A-2}
     - {type: dynamics, runtime: 5 ps, timestep: 1 fs, pressure: 1 bar, restraint: heavy, k: 0.5 kcal mol-1 A-2}
+    - {type: dynamics, runtime: 10 ps, timestep: 1 fs, pressure: 1 bar, restraint: backbone, k: 0.5 kcal mol-1 A-2}
     - {type: dynamics, runtime: 10 ps, pressure: 1 bar}
-    - {type: dynamics, runtime: 500 ps, pressure: 1 bar}
+    - {type: dynamics, runtime: 2 ns, pressure: 1 bar}
   match_box:
     - {type: minimisation}
     - {type: dynamics, runtime: 50 ps}
@@ -28,9 +29,13 @@ free:
   stages:
     - {type: minimisation, restraint: heavy, k: 5 kcal mol-1 A-2}
     - {type: dynamics, runtime: 15 ps, timestep: 1 fs, restraint: heavy, k: 5 kcal mol-1 A-2}
+    - {type: minimisation, restraint: heavy, k: 2 kcal mol-1 A-2}
+    - {type: minimisation, restraint: heavy, k: 0.1 kcal mol-1 A-2}
     - {type: minimisation}
+    - {type: dynamics, runtime: 5 ps, timestep: 1 fs, pressure: 1 bar, restraint: heavy, k: 1 kcal mol-1 A-2}
+    - {type: dynamics, runtime: 5 ps, timestep: 1 fs, pressure: 1 bar, restraint: heavy, k: 0.5 kcal mol-1 A-2}
     - {type: dynamics, runtime: 10 ps, pressure: 1 bar}
-    - {type: dynamics, runtime: 200 ps, pressure: 1 bar}
+    - {type: dynamics, runtime: 500 ps, pressure: 1 bar}
   match_box:
     - {type: minimisation}
     - {type: dynamics, runtime: 50 ps}
