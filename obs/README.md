@@ -203,7 +203,13 @@ constant volume after the λ = 1 box has been rescaled.
   mappings are designed for OpenFE's hybrid topology and avoid perturbations,
   such as constraint changes, that SOMD2 handles. If BioSimSpace warns that
   relaxing `ringMatchesRingOnly` gives a larger common core, the edge is
-  re-mapped with `mcs_kwargs={"ringMatchesRingOnly": False}`. `--mapper openfe`
+  re-mapped with `mcs_kwargs={"ringMatchesRingOnly": False}`. For individual edges
+  whose mapping doesn't equilibrate, `--max-pair-distance` drops mapped pairs further
+  apart than that in the input poses, with their hydrogens, recording them as
+  `pruned_pairs` in `edge.json`. This is used for bace_baumann lig_41~lig_74 and
+  lig_41~lig_81 with a cut-off of 0.95 Å, where a CH₂F carbon was mapped onto an
+  amidine nitrogen 1.02 Å away. It's not applied generally, since many edges that equilibrate fine have
+  pairs further apart, e.g. from ring flips. `--mapper openfe`
   uses the network mappings instead, and edges from a mappings file always use
   their own. `edge.json` records which was used. The SDF ligands are checked
   against the network components atom by atom. `--allow-ring-breaking` and

@@ -106,9 +106,6 @@ def nudge_coincident_ghosts(merged):
     return nudged
 
 
-# Mapped atoms further apart than this in the input poses, which share a frame, don't
-# correspond in space. This is Kartograf's default.
-MAX_PAIR_DISTANCE = 0.95
 
 
 def prune_distant_pairs(lig_a, lig_b, mapping, max_distance):
@@ -150,7 +147,7 @@ def merge_edge(
     allow_ring_breaking,
     allow_ring_size_change,
     max_matches,
-    max_pair_distance=MAX_PAIR_DISTANCE,
+    max_pair_distance=None,
 ):
     lig_a = _common.load_ligand(param_dir, edge.componentA.name)
     lig_b = _common.load_ligand(param_dir, edge.componentB.name)
@@ -164,9 +161,10 @@ def merge_edge(
     else:
         mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
         details.update(extra)
-        mapping, pruned = prune_distant_pairs(lig_a, lig_b, mapping, max_pair_distance)
-        if pruned:
-            details["pruned_pairs"] = pruned
+        if max_pair_distance is not None:
+            mapping, pruned = prune_distant_pairs(lig_a, lig_b, mapping, max_pair_distance)
+            if pruned:
+                details["pruned_pairs"] = pruned
         try:
             merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
         except BSS._Exceptions.IncompatibleError as e:
@@ -227,9 +225,10 @@ def main():
     parser.add_argument(
         "--max-pair-distance",
         type=float,
-        default=MAX_PAIR_DISTANCE,
+        default=None,
         help="Drop BioSimSpace-mapped pairs further apart than this in the input poses, "
-        "in Angstrom.",
+        "in Angstrom. Off by default; used for individual edges whose mapping doesn't "
+        "equilibrate.",
     )
     parser.add_argument(
         "--mappings", default=None, help="Take the edges from a mappings file instead."
