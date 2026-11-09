@@ -106,7 +106,52 @@ def nudge_coincident_ghosts(merged):
     return nudged
 
 
-def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_change, max_matches):
+# Mapped atoms further apart than this in the input poses, which share a frame, don't
+# correspond in space. This is Kartograf's default.
+MAX_PAIR_DISTANCE = 0.95
+
+
+def prune_distant_pairs(lig_a, lig_b, mapping, max_distance):
+    """Drop mapped pairs further apart than 'max_distance' in Angstrom, along with any
+    mapped hydrogen bonded to a dropped atom. Returns the mapping and the dropped pairs."""
+
+    def coords(lig):
+        return np.array(
+            [
+                [v.x().value(), v.y().value(), v.z().value()]
+                for v in lig._sire_object.property("coordinates").to_vector()
+            ]
+        )
+
+    xa, xb = coords(lig_a), coords(lig_b)
+    dist = {i: float(np.linalg.norm(xa[i] - xb[j])) for i, j in mapping.items()}
+    far = {i for i, d in dist.items() if d > max_distance}
+    if not far:
+        return mapping, []
+
+    mol = lig_a._sire_object
+    hydrogens = {i for i, atom in enumerate(mol.atoms()) if atom.element().num_protons() == 1}
+    for bond in mol.bonds():
+        i, j = bond.atom0().index().value(), bond.atom1().index().value()
+        if i in far and j in hydrogens:
+            far.add(j)
+        elif j in far and i in hydrogens:
+            far.add(i)
+
+    pruned = [[i, mapping[i], round(dist[i], 3)] for i in sorted(far) if i in mapping]
+    logger.info(f"Dropped {len(pruned)} mapped pairs further apart than {max_distance} A")
+    return {i: j for i, j in mapping.items() if i not in far}, pruned
+
+
+def merge_edge(
+    edge,
+    method,
+    param_dir,
+    allow_ring_breaking,
+    allow_ring_size_change,
+    max_matches,
+    max_pair_distance=MAX_PAIR_DISTANCE,
+):
     lig_a = _common.load_ligand(param_dir, edge.componentA.name)
     lig_b = _common.load_ligand(param_dir, edge.componentB.name)
     network_mapping = {int(a): int(b) for a, b in edge.componentA_to_componentB.items()}
@@ -119,6 +164,9 @@ def merge_edge(edge, method, param_dir, allow_ring_breaking, allow_ring_size_cha
     else:
         mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
         details.update(extra)
+        mapping, pruned = prune_distant_pairs(lig_a, lig_b, mapping, max_pair_distance)
+        if pruned:
+            details["pruned_pairs"] = pruned
         try:
             merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
         except BSS._Exceptions.IncompatibleError as e:
@@ -175,6 +223,13 @@ def main():
         default=1000,
         help="Candidate MCS matches that BioSimSpace scores. Large values are slow "
         "with BioSimSpace versions before the fix for issue #561.",
+    )
+    parser.add_argument(
+        "--max-pair-distance",
+        type=float,
+        default=MAX_PAIR_DISTANCE,
+        help="Drop BioSimSpace-mapped pairs further apart than this in the input poses, "
+        "in Angstrom.",
     )
     parser.add_argument(
         "--mappings", default=None, help="Take the edges from a mappings file instead."
@@ -270,6 +325,7 @@ def prepare_edge(args, edge, out, param_dir, receptor):
         args.allow_ring_breaking or getattr(edge, "allow_ring_breaking", False),
         args.allow_ring_size_change or getattr(edge, "allow_ring_size_change", False),
         args.max_scoring_matches,
+        args.max_pair_distance,
     )
 
     for leg in args.legs:
