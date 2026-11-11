@@ -51,6 +51,8 @@ def bss_mapping(lig_a, lig_b, max_scoring_matches):
 
 
 def mapper(args, edge):
+    if getattr(edge, "mapper", None):
+        return edge.mapper
     return "file" if hasattr(edge, "allow_ring_breaking") else args.mapper
 
 
@@ -197,6 +199,9 @@ def load_mappings(path, system):
                 annotations={"metadata": entry["metadata"], "source": entry["source"]},
                 allow_ring_breaking=entry.get("allow_ring_breaking", False),
                 allow_ring_size_change=entry.get("allow_ring_size_change", False),
+                # e.g. "biosimspace" to map the atoms rather than use the mapping,
+                # which is then only used if BioSimSpace's mapping can't be merged.
+                mapper=entry.get("mapper"),
             )
         )
     if not edges:
