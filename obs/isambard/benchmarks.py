@@ -137,7 +137,11 @@ def state(config, leg, queued):
 
 def gpu_hours(config, leg):
     somd2 = somd2_config(leg.somd2, leg.leg)
-    runtime = float(re.match(r"\s*([0-9.]+)\s*ns", str(somd2["runtime"])).group(1))
+    match = re.fullmatch(r"\s*([0-9.eE+-]+)\s*(fs|ps|ns|us)\s*", str(somd2["runtime"]))
+    if match is None:
+        raise ValueError(f"Can't read the runtime '{somd2['runtime']}' of '{leg.somd2}'")
+    scale = {"fs": 1e-6, "ps": 1e-3, "ns": 1.0, "us": 1e3}[match.group(2)]
+    runtime = float(match.group(1)) * scale
     num_lambda = somd2.get("num_lambda", 11)
     return runtime * num_lambda / config["throughput"][leg.leg] * 24 * config["slurm"]["gpus_per_job"]
 
