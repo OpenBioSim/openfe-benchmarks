@@ -1,0 +1,11 @@
+# Ring-breaking edges, using SOMD2's ring-breaking schedule and default Morse restraints.
+runtime: 10 ns
+checkpoint_frequency: 1 ns
+frame_frequency: 1 ns
+timestep: 4 fs
+temperature: 298.15 K
+pressure: 1 bar
+lambda_schedule: ring_break_morph
+num_lambda: 21
+replica_exchange: true
+adaptive_repex: true

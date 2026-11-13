@@ -1,0 +1,12 @@
+# SOMD2's features switched on, for blocks run in "default mode".
+runtime: 5 ns
+checkpoint_frequency: 500 ps
+frame_frequency: 500 ps
+timestep: 4 fs
+temperature: 298.15 K
+pressure: 1 bar
+num_lambda: 11
+replica_exchange: true
+gcmc: true
+# TODO: REST2 (rest2_scale, rest2_selection) and terminal flips
+# (terminal_flip_frequency), which are off unless set.

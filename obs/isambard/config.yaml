@@ -1,0 +1,47 @@
+# What to run on Isambard-AI, and how. Environment variables are expanded.
+
+paths:
+  # Equilibrated inputs, laid out as obs_output/<group>/<system>/{rbfe,abfe}/<name>/.
+  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  # Where SOMD2 runs, including checkpoints for restarts.
+  scratch: ${SCRATCHDIR}/somd2_benchmarks
+  # Where finished legs and their analysis are copied.
+  output: ${PROJECTDIR}/lester/benchmarks/output
+
+# Commands run at the start of each job.
+setup:
+  - module load cuda/12.6
+  - eval "$(pixi shell-hook -e dev --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+
+slurm:
+  gpus_per_job: 1
+  time: "12:00:00"
+  # Jobs queued or running at once. Each uses 'gpus_per_job' GPUs, so this also
+  # caps the GPUs in use. The QOS allows 256 running and 512 submitted.
+  max_jobs: 32
+  # Times an unfinished leg is resubmitted (restarting from its checkpoint).
+  max_attempts: 3
+  extra: []
+
+# Each job submits more legs when it finishes, up to 'max_jobs', so the queue keeps
+# itself topped up. Set to false to submit only by running 'benchmarks.py submit'.
+top_up: true
+
+# The benchmark set (obs/config/<set>.yaml) and the blocks to run, each with the
+# SOMD2 config to use (somd2/<name>.yaml).
+set: curated
+blocks:
+  A: matched
+replicates: 3
+
+# Optional: restrict to these systems ("group/system") or edges/ligands
+# ("group/system/name").
+only: []
+
+# Copy the trajectories to the output directory as well as the energies.
+copy_trajectories: false
+
+# Throughput per GPU in ns/day, for cost estimates. Update from measured runs.
+throughput:
+  bound: 420
+  free: 940

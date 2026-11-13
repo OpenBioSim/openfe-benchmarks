@@ -1,0 +1,10 @@
+# As close as possible to the OpenFE reference submissions.
+runtime: 5 ns
+checkpoint_frequency: 500 ps
+frame_frequency: 500 ps
+timestep: 4 fs
+temperature: 298.15 K
+pressure: 1 bar
+num_lambda: 11
+replica_exchange: true
+# TODO: set the cut-off to match OpenFE (SOMD2's default is 9 A).

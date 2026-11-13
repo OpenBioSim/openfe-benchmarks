@@ -1,0 +1,15 @@
+# ABFE. SOMD2 searches for a Boresch restraint for the bound leg. Settings under
+# 'legs' apply to that leg only.
+runtime: 5 ns
+checkpoint_frequency: 500 ps
+frame_frequency: 500 ps
+timestep: 4 fs
+temperature: 298.15 K
+pressure: 1 bar
+lambda_schedule: annihilate
+replica_exchange: true
+legs:
+  bound:
+    num_lambda: 28
+  free:
+    num_lambda: 20
