@@ -2,12 +2,16 @@
 up the queue. Run inside a job by leg.sbatch."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
+
+# pymbar reads this when it's first imported, by the analysis below.
+os.environ["PYMBAR_DISABLE_JAX"] = "true"
 
 COPY = ["energy_traj_*.parquet", "energy_components_*.parquet", "config*.yaml", "log.txt", "abfe_restraint.s3"]
 
