@@ -1,0 +1,9 @@
+# A very short run to check that the environment, SOMD2 and the analysis work.
+runtime: 20 ps
+checkpoint_frequency: 10 ps
+frame_frequency: 10 ps
+timestep: 4 fs
+temperature: 298.15 K
+pressure: 1 bar
+num_lambda: 11
+replica_exchange: true

@@ -1,0 +1,56 @@
+# A pilot of one edge or ligand per block, at production settings, to check each
+# block's SOMD2 config before the full campaign. Results go to the same directories
+# as the full run, so finished legs aren't rerun.
+
+paths:
+  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  scratch: ${SCRATCHDIR}/somd2_benchmarks
+  output: ${PROJECTDIR}/lester/benchmarks/output
+
+setup:
+  - module load cuda/12.6
+  - eval "$(pixi shell-hook -e dev --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+
+slurm:
+  gpus_per_job: 1
+  time: "12:00:00"
+  max_jobs: 32
+  max_attempts: 3
+  extra: []
+
+top_up: true
+
+set: curated
+blocks:
+  A: matched
+  B: matched
+  C: default
+  D: ring_break
+  D_macro: matched
+  E: default
+  G: abfe
+replicates: 3
+
+only:
+  # Regression against experiment and earlier SOMD2 results.
+  - jacs_set/bace/CAT-13o~CAT-13f
+  # Newly stiffened acyclic bridge with the largest free-leg shift.
+  - jacs_set/tyk2/ejm_55~ejm_54
+  # Charge change with alchemical ions, and a newly stiffened bridge.
+  - charge_annihilation_set/cdk2/34~25
+  # GCMC.
+  - water_set/brd4/cmpd_2__methyl_~cmpd_3__Allyl_
+  # Ring breaking.
+  - scaffold_hopping/chk1/1~17_rb
+  # Macrocycle closed through ghost atoms, which needs Sire's ring detection fix.
+  - bayer_macrocycles/brd4/61a~25e
+  # The torsion window.
+  - miscellaneous_set/hiv1_protease/13~14
+  # ABFE with an automatically chosen Boresch restraint.
+  - jacs_set/tyk2/ejm_31
+
+copy_trajectories: false
+
+throughput:
+  bound: 420
+  free: 940

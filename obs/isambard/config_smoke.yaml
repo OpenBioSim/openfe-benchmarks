@@ -1,0 +1,34 @@
+# A short test that a job can load the environment, run SOMD2 on a GPU, analyse the
+# leg and copy the results. Uses its own scratch and output directories.
+
+paths:
+  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  scratch: ${SCRATCHDIR}/somd2_benchmarks_smoke
+  output: ${PROJECTDIR}/lester/benchmarks/output_smoke
+
+setup:
+  - module load cuda/12.6
+  - eval "$(pixi shell-hook -e dev --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+
+slurm:
+  gpus_per_job: 1
+  time: "00:30:00"
+  max_jobs: 2
+  max_attempts: 1
+  extra: []
+
+top_up: false
+
+set: curated
+blocks:
+  A: smoke
+replicates: 1
+
+only:
+  - jacs_set/tyk2/ejm_55~ejm_54
+
+copy_trajectories: false
+
+throughput:
+  bound: 420
+  free: 940
