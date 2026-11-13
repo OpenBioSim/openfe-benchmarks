@@ -12,7 +12,7 @@ paths:
 # Commands run at the start of each job.
 setup:
   - module load cuda/12.6
-  - eval "$(pixi shell-hook -e dev --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+  - eval "$(pixi shell-hook -e obs --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
 
 slurm:
   gpus_per_job: 1
