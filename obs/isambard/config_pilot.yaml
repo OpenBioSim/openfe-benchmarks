@@ -3,7 +3,7 @@
 # as the full run, so finished legs aren't rerun.
 
 paths:
-  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  input: ${PROJECTDIR}/lester/benchmarks/input
   scratch: ${SCRATCHDIR}/somd2_benchmarks
   output: ${PROJECTDIR}/lester/benchmarks/output
 

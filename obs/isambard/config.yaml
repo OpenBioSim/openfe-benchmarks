@@ -1,8 +1,9 @@
 # What to run on Isambard-AI, and how. Environment variables are expanded.
 
 paths:
-  # Equilibrated inputs, laid out as obs_output/<group>/<system>/{rbfe,abfe}/<name>/.
-  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  # Equilibrated inputs, i.e. the contents of obs_output, laid out as
+  # <group>/<system>/{rbfe,abfe}/<name>/.
+  input: ${PROJECTDIR}/lester/benchmarks/input
   # Where SOMD2 runs, including checkpoints for restarts.
   scratch: ${SCRATCHDIR}/somd2_benchmarks
   # Where finished legs and their analysis are copied.

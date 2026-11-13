@@ -2,7 +2,7 @@
 # leg and copy the results. Uses its own scratch and output directories.
 
 paths:
-  input: ${PROJECTDIR}/lester/benchmarks/input/obs_output
+  input: ${PROJECTDIR}/lester/benchmarks/input
   scratch: ${SCRATCHDIR}/somd2_benchmarks_smoke
   output: ${PROJECTDIR}/lester/benchmarks/output_smoke
 
