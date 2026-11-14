@@ -8,5 +8,6 @@ pressure: 1 bar
 num_lambda: 11
 replica_exchange: true
 gcmc: true
+gcmc_num_waters: 80
 # TODO: REST2 (rest2_scale, rest2_selection) and terminal flips
 # (terminal_flip_frequency), which are off unless set.

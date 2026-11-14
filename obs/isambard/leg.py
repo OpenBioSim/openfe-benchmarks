@@ -3,15 +3,20 @@ up the queue. Run inside a job by leg.sbatch."""
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
+import yaml
 
 # pymbar reads this when it's first imported, by the analysis below.
 os.environ["PYMBAR_DISABLE_JAX"] = "true"
+
+# How Sire reports an unstable simulation.
+UNSTABLE = re.compile(r"NaN|has become unstable")
 
 COPY = ["energy_traj_*.parquet", "energy_components_*.parquet", "config*.yaml", "log.txt", "abfe_restraint.s3"]
 
@@ -25,6 +30,25 @@ def run_somd2(job, run, work):
     command += ["--restart"] if restart else ["--overwrite"]
     print(" ".join(command), flush=True)
     subprocess.run(command, check=True)
+
+
+def fall_back(job, run, work):
+    """If the leg failed from instability, set it up to restart from scratch with the
+    fallback timestep, keeping the failed run. Returns whether it did."""
+    fallback = job.get("fallback_timestep")
+    path = run / "somd2.yaml"
+    config = yaml.safe_load(path.read_text())
+    log = work / "log.txt"
+    if fallback is None or str(config.get("timestep")) == fallback or not log.exists():
+        return False
+    if not UNSTABLE.search(log.read_text()):
+        return False
+    print(f"{job['id']} is unstable with a {config.get('timestep')} timestep. Restarting with {fallback}.", flush=True)
+    work.rename(run / f"somd2.unstable.{str(config.get('timestep')).replace(' ', '')}")
+    config["timestep"] = fallback
+    path.write_text(yaml.safe_dump(config))
+    (run / "fallback_timestep").write_text(f"{fallback}\n")
+    return True
 
 
 def windows(work):
@@ -96,8 +120,14 @@ def main():
     work = run / "somd2"
     output = Path(job["output"])
 
-    run_somd2(job, run, work)
+    try:
+        run_somd2(job, run, work)
+    except subprocess.CalledProcessError:
+        if not fall_back(job, run, work):
+            raise
+        run_somd2(job, run, work)
     analysis = analyse(work)
+    analysis["timestep"] = str(yaml.safe_load((run / "somd2.yaml").read_text()).get("timestep"))
     copy_results(work, output, job["copy_trajectories"])
     (output / "analysis.json").write_text(json.dumps({"id": job["id"], **analysis}, indent=2))
     print(f"{job['id']}: {analysis['free_energy']:.3f} +/- {analysis['error']:.3f} kcal/mol", flush=True)

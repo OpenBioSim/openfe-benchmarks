@@ -161,6 +161,9 @@ def submit_leg(config, leg, dry_run):
         return False
 
     somd2 = somd2_config(leg.somd2, leg.leg)
+    fallback = directory / "fallback_timestep"
+    if fallback.exists():
+        somd2["timestep"] = fallback.read_text().strip()
     (directory / "somd2.yaml").write_text(yaml.safe_dump(somd2))
     job = {
         "id": leg.id,
@@ -170,6 +173,7 @@ def submit_leg(config, leg, dry_run):
         ),
         "output": str(output_dir(config, leg)),
         "copy_trajectories": bool(config.get("copy_trajectories", False)),
+        "fallback_timestep": config.get("fallback_timestep"),
         "top_up": (
             [sys.executable, str(HERE / "benchmarks.py"), "--config", config["file"], "submit"]
             if config.get("top_up", True)

@@ -8,7 +8,14 @@ paths:
 
 setup:
   - module load cuda/12.6
+  # nvcc (used by loch for GCMC) doesn't support pixi's GCC, so use the system GCC 13.
+  - module load gcc-native/13.2
   - eval "$(pixi shell-hook -e obs --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+  - export NVCC_PREPEND_FLAGS="-ccbin g++-13"
+
+# A leg that becomes unstable is restarted from scratch with this timestep, since
+# SOMD2 can't change the timestep on a restart. Set to null to disable.
+fallback_timestep: 2 fs
 
 slurm:
   gpus_per_job: 1

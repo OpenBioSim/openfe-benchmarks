@@ -23,8 +23,10 @@ under `<group>/<system>/<rbfe|abfe>/<name>/<config>/<leg>/rep<n>/`.
 1. Copy this repository (the `feature_obs` branch) to Isambard-AI, e.g. to
    `$PROJECTDIR/lester/code/openfe-benchmarks`, and the equilibrated inputs to
    `paths.input`.
-2. Check `config.yaml`: the paths, `setup` (CUDA module and pixi environment),
-   `blocks`, `replicates`, and `slurm.max_jobs`.
+2. Check `config.yaml`: the paths, `setup` (CUDA and GCC modules, and the pixi
+   environment), `blocks`, `replicates`, and `slurm.max_jobs`. GCMC compiles CUDA
+   kernels with nvcc, which doesn't support pixi's GCC, so `setup` points it at
+   the system GCC 13.
 3. Fill in the TODOs in `somd2/*.yaml` for the configs in use.
 
 ## Running
@@ -54,6 +56,12 @@ as `unfinished` and resubmitted by the next `submit`. SOMD2 restarts it from its
 checkpoint. After `slurm.max_attempts` attempts it's shown as `failed`, with its
 latest Slurm log. To retry a failed leg, delete the `attempt.*` files in its scratch
 directory.
+
+A leg that becomes unstable (a `NaN` or SOMD2 reporting it unstable) is restarted
+from scratch with `fallback_timestep`, since SOMD2 can't change the timestep on a
+restart. The failed run is kept in `somd2.unstable.<timestep>` in the scratch
+directory, and later attempts keep the fallback timestep. Each `analysis.json`
+records the timestep used.
 
 ## Results
 
