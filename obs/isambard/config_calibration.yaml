@@ -29,9 +29,9 @@ top_up: true
 
 set: curated
 blocks:
-  A: [all_on]
-  C: [all_on]
-  E: [all_on]
+  A: [all_on, matched]
+  C: [all_on, matched]
+  E: [all_on, matched]
 replicates: 3
 
 only:
