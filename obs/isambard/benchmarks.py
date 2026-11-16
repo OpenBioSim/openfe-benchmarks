@@ -320,9 +320,11 @@ def cmd_progress(config, args):
         groups[leg.system].add(leg.group)
     ambiguous = {system for system, names in groups.items() if len(names) > 1}
     rows = []
+    counts = Counter()
     for leg in legs:
         s = state(config, leg, queued)
-        if s == "done":
+        counts[s] += 1
+        if s in ("done", "new"):
             continue
         log = run_dir(config, leg) / "somd2" / "log.txt"
         progress = leg_progress(log) if log.exists() else None
@@ -337,7 +339,8 @@ def cmd_progress(config, args):
         rows.append((fraction, f"{percent}  {cycles:>11}  {eta}  {s:<10} {short_name(leg, ambiguous)}"))
     for _, row in sorted(rows):
         print(row)
-    print(f"{len(rows)} legs not done")
+    print(f"{len(rows)} legs submitted and not done, {counts['new']} not submitted, {counts['done']} done")
+    print("Legs with no progress yet are still setting up.")
 
 
 def cmd_submit(config, args):
