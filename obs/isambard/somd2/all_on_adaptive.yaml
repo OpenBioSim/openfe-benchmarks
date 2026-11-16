@@ -1,0 +1,4 @@
+# The candidate defaults with adaptive replica exchange, which concentrates
+# sampling on the windows that limit convergence.
+base: all_on
+adaptive_repex: true
