@@ -339,8 +339,11 @@ def cmd_progress(config, args):
         rows.append((fraction, f"{percent}  {cycles:>11}  {eta}  {s:<10} {short_name(leg, ambiguous)}"))
     for _, row in sorted(rows):
         print(row)
-    print(f"{len(rows)} legs submitted and not done, {counts['new']} not submitted, {counts['done']} done")
+    print(f"{len(rows)} legs submitted and not done, {counts['done']} done")
     print("Legs with no progress yet are still setting up.")
+    if counts["new"]:
+        how = "as running jobs finish" if config.get("top_up", True) else "by 'submit'"
+        print(f"{counts['new']} legs not submitted yet, which will be submitted {how}.")
 
 
 def cmd_submit(config, args):
