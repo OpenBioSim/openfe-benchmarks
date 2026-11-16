@@ -43,6 +43,7 @@ From a login node, with the pixi environment active:
 
 ```
 python benchmarks.py plan              # progress, problems, and GPU-hours still to run
+python benchmarks.py progress          # how far each leg that isn't done has got
 python benchmarks.py submit --dry-run  # what would be submitted
 python benchmarks.py submit            # submit up to slurm.max_jobs jobs
 python benchmarks.py collect           # results.csv in paths.output
@@ -54,7 +55,9 @@ also caps the GPUs in use, at `max_jobs * gpus_per_job`. To pause, set `top_up:
 false`, or lower `max_jobs`.
 
 `plan` calls `squeue` once; there's no need to run it more often than every few
-minutes. Finished legs are never rerun, so adding blocks, systems or replicates to
+minutes. `progress` reads each running leg's SOMD2 log in `paths.scratch`, and shows
+the replica exchange cycles run and an estimate of the time left. The total
+number of cycles is known once the leg has reached its first checkpoint. Finished legs are never rerun, so adding blocks, systems or replicates to
 `config.yaml` and running `submit` again only submits the new work.
 
 ## Failures and restarts

@@ -249,6 +249,71 @@ def cmd_plan(config, args):
         print(f"  {state(config, leg, queued)}: {leg.id} ({logs[-1] if logs else 'no log'})")
 
 
+BLOCK = re.compile(r"Finished block \d+ of (\d+)")
+CYCLE = re.compile(r"^(\S+ \S+) .*Running dynamics at \S+ = ([0-9.]+)")
+
+
+def leg_progress(log):
+    """Progress of a replica exchange leg from its SOMD2 log: the cycles run, the
+    total number of cycles, and the estimated time to finish. Each window logs
+    every cycle it runs, and the total comes from the number of cycles in the
+    first checkpoint block. The total and time are None before the first
+    checkpoint, and None is returned if no cycle has run."""
+    from datetime import datetime
+
+    cycles = Counter()
+    first = last = None
+    per_block = num_blocks = None
+    for line in log.read_text(errors="replace").splitlines():
+        match = CYCLE.match(line)
+        if match:
+            cycles[match.group(2)] += 1
+            last = match.group(1)
+            first = first or last
+            continue
+        match = BLOCK.search(line)
+        if match and per_block is None:
+            per_block = max(cycles.values(), default=0)
+            num_blocks = int(match.group(1))
+    if not cycles:
+        return None
+
+    done = max(cycles.values())
+    if not per_block:
+        return done, None, None
+    total = per_block * num_blocks
+
+    def parse(t):
+        return datetime.strptime(t, "%Y-%m-%d %H:%M:%S.%f")
+
+    elapsed = parse(last) - parse(first)
+    remaining = elapsed / done * max(total - done, 0) if done > 1 else None
+    return done, total, remaining
+
+
+def cmd_progress(config, args):
+    queued = queue()
+    rows = []
+    for leg in find_legs(config):
+        s = state(config, leg, queued)
+        if s == "done":
+            continue
+        log = run_dir(config, leg) / "somd2" / "log.txt"
+        progress = leg_progress(log) if log.exists() else None
+        if progress is None:
+            rows.append((-1.0, f"{'':>6}  {'':>13}  {'':>8}  {s:<10} {leg.id}"))
+            continue
+        done, total, remaining = progress
+        fraction = min(done / total, 1.0) if total else 0.0
+        percent = f"{100 * fraction:5.1f}%" if total else f"{'?':>6}"
+        cycles = f"{done}/{total if total else '?'}"
+        eta = f"{remaining.total_seconds() / 3600:6.1f} h" if remaining is not None else f"{'-':>8}"
+        rows.append((fraction, f"{percent}  {cycles:>13}  {eta}  {s:<10} {leg.id}"))
+    for _, row in sorted(rows):
+        print(row)
+    print(f"{len(rows)} legs not done")
+
+
 def cmd_submit(config, args):
     queued = queue()
     slots = config["slurm"]["max_jobs"] - len(queued)
@@ -311,6 +376,7 @@ def main():
     parser.add_argument("--config", default=str(HERE / "config.yaml"))
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("plan", help="Show progress, problems and the GPU-hours still to run.")
+    sub.add_parser("progress", help="Show how far each leg that isn't done has got.")
     p = sub.add_parser("submit", help="Submit legs, up to the slurm 'max_jobs' limit.")
     p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("collect", help="Combine finished legs into free energies (CSV).")
@@ -318,7 +384,8 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    {"plan": cmd_plan, "submit": cmd_submit, "collect": cmd_collect}[args.command](config, args)
+    commands = {"plan": cmd_plan, "progress": cmd_progress, "submit": cmd_submit, "collect": cmd_collect}
+    commands[args.command](config, args)
 
 
 if __name__ == "__main__":

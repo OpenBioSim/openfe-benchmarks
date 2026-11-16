@@ -18,7 +18,14 @@ os.environ["PYMBAR_DISABLE_JAX"] = "true"
 # How Sire reports an unstable simulation.
 UNSTABLE = re.compile(r"NaN|has become unstable")
 
-COPY = ["energy_traj_*.parquet", "energy_components_*.parquet", "config*.yaml", "log.txt", "abfe_restraint.s3"]
+COPY = [
+    "energy_traj_*.parquet",
+    "energy_components_*.parquet",
+    "config*.yaml",
+    "log.txt",
+    "abfe_restraint.s3",
+    "gcmc_ghosts_*.txt",
+]
 
 
 def run_somd2(job, run, work):
