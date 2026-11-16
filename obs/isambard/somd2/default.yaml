@@ -7,6 +7,8 @@ temperature: 298.15 K
 pressure: 1 bar
 num_lambda: 11
 replica_exchange: true
+# Energies only for the nearest windows, since distant windows seldom overlap.
+num_energy_neighbours: 3
 gcmc: true
 # TODO: REST2 (rest2_scale, rest2_selection) and terminal flips
 # (terminal_flip_frequency), which are off unless set.

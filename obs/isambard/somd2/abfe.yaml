@@ -8,6 +8,8 @@ temperature: 298.15 K
 pressure: 1 bar
 lambda_schedule: annihilate
 replica_exchange: true
+# Energies only for the nearest windows, since distant windows seldom overlap.
+num_energy_neighbours: 3
 legs:
   bound:
     num_lambda: 28

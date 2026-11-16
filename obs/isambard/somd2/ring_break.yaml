@@ -8,4 +8,6 @@ pressure: 1 bar
 lambda_schedule: ring_break_morph
 num_lambda: 21
 replica_exchange: true
+# Energies only for the nearest windows, since distant windows seldom overlap.
+num_energy_neighbours: 3
 adaptive_repex: true
