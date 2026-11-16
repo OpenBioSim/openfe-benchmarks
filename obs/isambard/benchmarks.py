@@ -304,24 +304,37 @@ def leg_progress(log):
     return done, total, remaining
 
 
+def short_name(leg, ambiguous):
+    """A compact label for a leg, with the group only when the system name is
+    used by more than one group."""
+    system = f"{leg.group}/{leg.system}" if leg.system in ambiguous else leg.system
+    kind = " (abfe)" if leg.kind == "abfe" else ""
+    return f"{system}/{leg.name}{kind} {leg.somd2} {leg.leg} r{leg.replicate}"
+
+
 def cmd_progress(config, args):
     queued = queue()
+    legs = find_legs(config)
+    groups = defaultdict(set)
+    for leg in legs:
+        groups[leg.system].add(leg.group)
+    ambiguous = {system for system, names in groups.items() if len(names) > 1}
     rows = []
-    for leg in find_legs(config):
+    for leg in legs:
         s = state(config, leg, queued)
         if s == "done":
             continue
         log = run_dir(config, leg) / "somd2" / "log.txt"
         progress = leg_progress(log) if log.exists() else None
         if progress is None:
-            rows.append((-1.0, f"{'':>6}  {'':>13}  {'':>8}  {s:<10} {leg.id}"))
+            rows.append((-1.0, f"{'':>6}  {'':>11}  {'':>7}  {s:<10} {short_name(leg, ambiguous)}"))
             continue
         done, total, remaining = progress
         fraction = min(done / total, 1.0) if total else 0.0
         percent = f"{100 * fraction:5.1f}%" if total else f"{'?':>6}"
         cycles = f"{done}/{total if total else '?'}"
-        eta = f"{remaining.total_seconds() / 3600:6.1f} h" if remaining is not None else f"{'-':>8}"
-        rows.append((fraction, f"{percent}  {cycles:>13}  {eta}  {s:<10} {leg.id}"))
+        eta = f"{remaining.total_seconds() / 3600:5.1f} h" if remaining is not None else f"{'-':>7}"
+        rows.append((fraction, f"{percent}  {cycles:>11}  {eta}  {s:<10} {short_name(leg, ambiguous)}"))
     for _, row in sorted(rows):
         print(row)
     print(f"{len(rows)} legs not done")
