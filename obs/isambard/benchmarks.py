@@ -164,7 +164,20 @@ def gpu_hours(config, leg):
     scale = {"fs": 1e-6, "ps": 1e-3, "ns": 1.0, "us": 1e3}[match.group(2)]
     runtime = float(match.group(1)) * scale
     num_lambda = somd2.get("num_lambda", 11)
-    return runtime * num_lambda / config["throughput"][leg.leg] * 24 * config["slurm"]["gpus_per_job"]
+    return runtime * num_lambda / throughput(config, leg) * 24 * config["slurm"]["gpus_per_job"]
+
+
+def throughput(config, leg):
+    """The throughput for a leg in ns/day, summed over its windows: the value for
+    its SOMD2 config, or the config it's based on, or the default for the leg."""
+    values = config["throughput"]
+    per_config = values.get("configs") or {}
+    name = leg.somd2
+    while name is not None:
+        if leg.leg in per_config.get(name, {}):
+            return per_config[name][leg.leg]
+        name = yaml.safe_load((HERE / "somd2" / f"{name}.yaml").read_text()).get("base")
+    return values[leg.leg]
 
 
 def submit_leg(config, leg, dry_run):

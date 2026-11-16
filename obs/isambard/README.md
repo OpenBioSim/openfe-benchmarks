@@ -37,6 +37,10 @@ e.g. a short `runtime` for a test. A test with overrides should use its own
 `paths.scratch` and `paths.output`, so that its legs don't count as done for the
 real run.
 
+The throughput used for GPU-hour estimates can be set per SOMD2 config under
+`throughput.configs`. A config without a value uses the value of the config it's
+based on, and then the defaults.
+
 ## Running
 
 From a login node, with the pixi environment active:

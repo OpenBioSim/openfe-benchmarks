@@ -61,3 +61,8 @@ copy_trajectories: false
 throughput:
   bound: 420
   free: 940
+  configs:
+    matched: {bound: 850, free: 2450}
+    all_on: {bound: 550, free: 1700}
+    abfe: {bound: 800, free: 2350}
+    ring_break: {bound: 850, free: 2200}

@@ -49,7 +49,14 @@ only: []
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false
 
-# Throughput per GPU in ns/day, for cost estimates. Update from measured runs.
+# Throughput per GPU in ns/day, summed over the windows, for cost estimates. Values
+# under 'configs' apply to a SOMD2 config and the configs based on it, and were
+# measured on Isambard-AI; the others are the defaults.
 throughput:
   bound: 420
   free: 940
+  configs:
+    matched: {bound: 850, free: 2450}
+    all_on: {bound: 550, free: 1700}
+    abfe: {bound: 800, free: 2350}
+    ring_break: {bound: 850, free: 2200}
