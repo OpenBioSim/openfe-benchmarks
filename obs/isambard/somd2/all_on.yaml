@@ -1,0 +1,7 @@
+# The candidate defaults for production runs: the matched protocol with terminal
+# flips, REST2 on the automatic region, and GCMC on the automatic sphere.
+base: matched
+terminal_flip_frequency: 1 ps
+rest2_scale: 2.0
+gcmc: true
+gcmc_frequency: 5 ps

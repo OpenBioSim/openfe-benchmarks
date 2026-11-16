@@ -1,0 +1,49 @@
+# A short run of the calibration configs on one edge, to check that every feature
+# works on Isambard-AI before the full calibration. Uses its own scratch and
+# output directories, so its legs don't count towards the calibration.
+
+paths:
+  input: ${PROJECTDIR}/lester/benchmarks/input
+  scratch: ${SCRATCHDIR}/somd2_benchmarks_calibration_smoke
+  output: ${PROJECTDIR}/lester/benchmarks/output_calibration_smoke
+
+# Commands run at the start of each job.
+setup:
+  - module load cuda/12.6
+  # nvcc (used by loch for GCMC) doesn't support pixi's GCC, so use the system GCC 13.
+  - module load gcc-native/13.2
+  - eval "$(pixi shell-hook -e obs --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+  - export NVCC_PREPEND_FLAGS="-ccbin g++-13"
+
+# A leg that becomes unstable is restarted from scratch with this timestep, since
+# SOMD2 can't change the timestep on a restart. Set to null to disable.
+fallback_timestep: 2 fs
+
+slurm:
+  gpus_per_job: 1
+  time: "01:00:00"
+  max_jobs: 2
+  max_attempts: 1
+  extra: []
+
+top_up: false
+
+set: curated
+blocks:
+  C: [all_on]
+replicates: 1
+
+only:
+  - water_set/brd4/cmpd_2__methyl_~cmpd_3__Allyl_
+
+# Applied to the SOMD2 config of every leg.
+overrides:
+  runtime: 20 ps
+  checkpoint_frequency: 10 ps
+  frame_frequency: 10 ps
+
+copy_trajectories: false
+
+throughput:
+  bound: 420
+  free: 940

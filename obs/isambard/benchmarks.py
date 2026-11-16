@@ -34,10 +34,28 @@ def load_config(path):
     return config
 
 
-def somd2_config(name, leg):
-    """The SOMD2 config for a leg, with any 'legs' overrides for it applied."""
+def load_somd2(name):
+    """A SOMD2 config, merged on top of the config named by its 'base', if any."""
     config = yaml.safe_load((HERE / "somd2" / f"{name}.yaml").read_text())
+    base = config.pop("base", None)
+    if base is None:
+        return config
+    merged = load_somd2(base)
+    legs = merged.pop("legs", None) or {}
+    for leg, options in (config.pop("legs", None) or {}).items():
+        legs[leg] = {**legs.get(leg, {}), **options}
+    merged.update(config)
+    if legs:
+        merged["legs"] = legs
+    return merged
+
+
+def somd2_config(name, leg, overrides=None):
+    """The SOMD2 config for a leg, with any 'legs' settings for it and any
+    campaign-wide overrides applied."""
+    config = load_somd2(name)
     config.update((config.pop("legs", None) or {}).get(leg, {}))
+    config.update(overrides or {})
     return config
 
 
@@ -72,7 +90,9 @@ def find_legs(config):
     for block, kind, group, system, options in _sets.load_set(
         config["set"], list(config["blocks"])
     ):
-        somd2 = config["blocks"][block]
+        somd2s = config["blocks"][block]
+        if isinstance(somd2s, str):
+            somd2s = [somd2s]
         system_dir = root / group / system / kind
         if not system_dir.is_dir():
             print(f"Warning: no inputs for {group}/{system} ({kind}) in {root}", file=sys.stderr)
@@ -89,8 +109,9 @@ def find_legs(config):
                 if not (d / f"{leg}_lambda_0.bss").exists():
                     print(f"Warning: {d}/{leg}_lambda_0.bss is missing", file=sys.stderr)
                     continue
-                for rep in range(1, config["replicates"] + 1):
-                    legs.append(Leg(block, kind, group, system, d.name, leg, somd2, rep, d))
+                for somd2 in somd2s:
+                    for rep in range(1, config["replicates"] + 1):
+                        legs.append(Leg(block, kind, group, system, d.name, leg, somd2, rep, d))
     return legs
 
 
@@ -136,7 +157,7 @@ def state(config, leg, queued):
 
 
 def gpu_hours(config, leg):
-    somd2 = somd2_config(leg.somd2, leg.leg)
+    somd2 = somd2_config(leg.somd2, leg.leg, config.get("overrides"))
     match = re.fullmatch(r"\s*([0-9.eE+-]+)\s*(fs|ps|ns|us)\s*", str(somd2["runtime"]))
     if match is None:
         raise ValueError(f"Can't read the runtime '{somd2['runtime']}' of '{leg.somd2}'")
@@ -160,7 +181,7 @@ def submit_leg(config, leg, dry_run):
     except FileExistsError:
         return False
 
-    somd2 = somd2_config(leg.somd2, leg.leg)
+    somd2 = somd2_config(leg.somd2, leg.leg, config.get("overrides"))
     fallback = directory / "fallback_timestep"
     if fallback.exists():
         somd2["timestep"] = fallback.read_text().strip()

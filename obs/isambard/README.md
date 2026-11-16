@@ -10,7 +10,8 @@ can be changed without touching the scripts.
 | File | Purpose |
 |---|---|
 | `config.yaml` | Paths, environment set-up, Slurm settings, and what to run. |
-| `somd2/*.yaml` | SOMD2 configs, chosen per block. Settings under `legs:` apply to one leg only. |
+| `config_calibration.yaml` | Calibration of the default SOMD2 settings, with `config_calibration_smoke.yaml` as a short check of it first. |
+| `somd2/*.yaml` | SOMD2 configs, chosen per block. Settings under `legs:` apply to one leg only, and `base:` names a config to start from. |
 | `benchmarks.py` | Run on a login node: `plan`, `submit` and `collect`. |
 | `leg.sbatch`, `leg.py` | One job: run SOMD2, analyse with MBAR, copy the results, top up the queue. |
 
@@ -28,6 +29,13 @@ under `<group>/<system>/<rbfe|abfe>/<name>/<config>/<leg>/rep<n>/`.
    kernels with nvcc, which doesn't support pixi's GCC, so `setup` points it at
    the system GCC 13.
 3. Fill in the TODOs in `somd2/*.yaml` for the configs in use.
+
+A block can be run with several SOMD2 configs by giving a list, e.g. `A: [matched,
+all_on]`. Each config's legs are kept separately, under the config's name. Settings
+under `overrides:` in `config.yaml` are applied to the SOMD2 config of every leg,
+e.g. a short `runtime` for a test. A test with overrides should use its own
+`paths.scratch` and `paths.output`, so that its legs don't count as done for the
+real run.
 
 ## Running
 

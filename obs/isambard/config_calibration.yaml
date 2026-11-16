@@ -1,0 +1,51 @@
+# Calibration of the default SOMD2 settings: the candidate defaults (all_on) on
+# edges where OpenFE's repeats disagree, buried-water edges, and controls.
+
+paths:
+  input: ${PROJECTDIR}/lester/benchmarks/input
+  scratch: ${SCRATCHDIR}/somd2_benchmarks
+  output: ${PROJECTDIR}/lester/benchmarks/output
+
+# Commands run at the start of each job.
+setup:
+  - module load cuda/12.6
+  # nvcc (used by loch for GCMC) doesn't support pixi's GCC, so use the system GCC 13.
+  - module load gcc-native/13.2
+  - eval "$(pixi shell-hook -e obs --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+  - export NVCC_PREPEND_FLAGS="-ccbin g++-13"
+
+# A leg that becomes unstable is restarted from scratch with this timestep, since
+# SOMD2 can't change the timestep on a restart. Set to null to disable.
+fallback_timestep: 2 fs
+
+slurm:
+  gpus_per_job: 1
+  time: "12:00:00"
+  max_jobs: 32
+  max_attempts: 3
+  extra: []
+
+top_up: true
+
+set: curated
+blocks:
+  A: [all_on]
+  C: [all_on]
+  E: [all_on]
+replicates: 3
+
+only:
+  - jacs_set/bace/CAT-13o~CAT-13f
+  - jacs_set/tyk2/ejm_55~ejm_54
+  - water_set/brd4/cmpd_2__methyl_~cmpd_3__Allyl_
+  - water_set/thrombin/6d_pose_2~1b_pose_2
+  - miscellaneous_set/faah/22~25
+  - miscellaneous_set/faah/19~28
+  - miscellaneous_set/btk/8~10
+  - miscellaneous_set/btk/2~9_flip
+
+copy_trajectories: false
+
+throughput:
+  bound: 420
+  free: 940
