@@ -1,4 +1,6 @@
-# SOMD2's features switched on, for blocks run in "default mode".
+# The default protocol for the production blocks, frozen from the calibration
+# (rest2_4): replica exchange, terminal flips, REST2 on the automatic region with
+# the exponential profile, and GCMC on the automatic sphere.
 runtime: 5 ns
 checkpoint_frequency: 500 ps
 frame_frequency: 500 ps
@@ -9,6 +11,8 @@ num_lambda: 11
 replica_exchange: true
 # Energies only for the nearest windows, since distant windows seldom overlap.
 num_energy_neighbours: 3
+terminal_flip_frequency: 1 ps
+rest2_scale: 4.0
+rest2_profile: exponential
 gcmc: true
-# TODO: REST2 (rest2_scale, rest2_selection) and terminal flips
-# (terminal_flip_frequency), which are off unless set.
+gcmc_frequency: 5 ps
