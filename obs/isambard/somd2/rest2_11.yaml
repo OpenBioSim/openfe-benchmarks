@@ -1,0 +1,5 @@
+# The candidate defaults with the REST2 scale used for thrombin CDA→CDB, on the
+# exponential profile.
+base: all_on
+rest2_scale: 11.0
+rest2_profile: exponential

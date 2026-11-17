@@ -1,0 +1,4 @@
+# The candidate defaults with a stronger REST2 scale on the exponential profile.
+base: all_on
+rest2_scale: 4.0
+rest2_profile: exponential
