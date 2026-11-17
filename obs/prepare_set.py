@@ -31,7 +31,9 @@ def commands(entries, extra):
         command = [sys.executable, str(SCRIPTS[kind])]
         command += ["--system-group", group, "--system-name", name]
         for key, value in options.items():
-            if value is True:
+            if isinstance(value, list):
+                command += [f"--{key.replace('_', '-')}", *value]
+            elif value is True:
                 command.append(f"--{key.replace('_', '-')}")
             elif value:
                 command += [f"--{key.replace('_', '-')}", value]

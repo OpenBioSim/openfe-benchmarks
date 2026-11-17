@@ -39,12 +39,20 @@ top_up: true
 # SOMD2 config to use (somd2/<name>.yaml).
 set: curated
 blocks:
-  A: matched
+  B: default
+  C: default
 replicates: 3
 
 # Optional: restrict to these systems ("group/system") or edges/ligands
 # ("group/system/name").
-only: []
+only:
+  # hsp90, where OpenFE does badly, with brd4 as a control.
+  - water_set/hsp90_kung
+  - water_set/hsp90_woodhead
+  - water_set/brd4
+  # Charge changes in ptp1b, with tyk2 as a control.
+  - charge_annihilation_set/ptp1b
+  - charge_annihilation_set/tyk2
 
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false

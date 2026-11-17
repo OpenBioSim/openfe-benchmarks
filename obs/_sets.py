@@ -41,6 +41,11 @@ def load_set(name, blocks=None):
         options = {k: bool(spec.get(k, False)) for k in MERGE_OPTIONS}
         if spec.get("mappings"):
             options["mappings"] = str(mappings_file(spec["mappings"]))
+        for system, edges in (spec.get("edges") or {}).items():
+            group, _, name = system.partition("/")
+            if not name:
+                raise ValueError(f"System '{system}' in block {block} isn't 'group/name'")
+            entries.append((block, "rbfe", group, name, {**options, "edges": list(edges)}))
         for kind in KINDS:
             for system in spec.get(kind, []):
                 group, _, name = system.partition("/")

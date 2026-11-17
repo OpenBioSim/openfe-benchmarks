@@ -100,6 +100,8 @@ def find_legs(config):
         for d in sorted(p for p in system_dir.iterdir() if p.is_dir()):
             if only and f"{group}/{system}" not in only and f"{group}/{system}/{d.name}" not in only:
                 continue
+            if "edges" in options and d.name not in options["edges"]:
+                continue
             if kind == "rbfe":
                 info = json.loads((d / "edge.json").read_text())
                 from_file = info.get("mapping_method", {}).get("mapper") == "file"

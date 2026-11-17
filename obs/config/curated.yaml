@@ -3,8 +3,9 @@
 #
 # Each block has 'rbfe' and/or 'abfe' lists of 'group/name' systems. A block can
 # also set 'allow_ring_breaking' and 'allow_ring_size_change' for its RBFE edges,
-# and 'mappings' to take its edges from config/mappings/<name>.json rather than
-# the OpenFE network.
+# 'mappings' to take its edges from config/mappings/<name>.json rather than the
+# OpenFE network, and 'edges' to run only some edges of a system, as
+# 'group/name: [edge, ...]' with the edges named as their directories.
 
 blocks:
   A:
@@ -87,6 +88,28 @@ blocks:
       - miscellaneous_set/faah
       - miscellaneous_set/galectin
       - miscellaneous_set/hiv1_protease
+
+  P:
+    description: >-
+      Partial fused ring transformations: edges whose OpenFE mapping maps only part
+      of a fused ring system, with an OpenFE result (52 edges; 54 in Fig. S13 of the
+      OpenFE benchmark paper's SI, which doesn't list them).
+    edges:
+      fragments/liga: [11~10, 9~11]
+      fragments/p38: [5_1WBW~3]
+      jacs_set/mcl1: [26~27, 27~42, 27~43_flip, 27~45, 27~46_flip, 27~47_flip, 27~48_flip, 28~46_flip, 33~45, 33~48_flip]
+      mcs_docking_set/hne: [6~14, 6~18]
+      mcs_docking_set/renin: [b1i2n~b1i5o, b1i5o~b1i4e]
+      merck/cdk8: [13~42-flipped, 19~17-flipped, 19~18-flipped, 30~42-flipped, 34~44-flipped, 36~44-flipped, 43~38, 43~42-flipped]
+      merck/hif2a: [1~266, 1~41, 41~84, 57~266]
+      merck/pfkfb3: [43~58, 43~59, 43~60_adjust, 43~63, 43~64, 62_flip~39]
+      merck/shp2: [SHP099-1_Example_7~Example_28]
+      merck/syk: [CHEMBL3265017~intermediate, CHEMBL3265021~intermediate, CHEMBL3265024~intermediate, CHEMBL3265025_flip~intermediate, CHEMBL3265026~intermediate]
+      miscellaneous_set/btk: [8~10, 8~11, 8~9_flip]
+      miscellaneous_set/faah: [6MRG_ligand~20]
+      miscellaneous_set/hiv1_protease: [12~19, 17~20, 9~19]
+      water_set/hsp90_kung: [cmpd_9~cmpd_7, cmpd_9~cmpd_8]
+      water_set/hsp90_woodhead: [1~3, 4~1]
 
   G:
     description: ABFE, for comparison with the RBFE results in blocks A and C.
