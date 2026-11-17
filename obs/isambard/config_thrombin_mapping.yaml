@@ -20,7 +20,8 @@ fallback_timestep: 2 fs
 slurm:
   gpus_per_job: 1
   time: "12:00:00"
-  max_jobs: 32
+  # Above the REST2 calibration's 32, since every benchmark job counts towards the limit.
+  max_jobs: 38
   max_attempts: 3
   extra: []
 
