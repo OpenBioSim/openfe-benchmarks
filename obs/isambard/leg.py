@@ -36,7 +36,8 @@ def run_somd2(job, run, work):
     restart = (work / "repex_state.pkl").exists() or any(work.glob("checkpoint_*.s3"))
     command += ["--restart"] if restart else ["--overwrite"]
     print(" ".join(command), flush=True)
-    subprocess.run(command, check=True)
+    # Run in the leg's directory, which is where crash reports are written.
+    subprocess.run(command, check=True, cwd=run)
 
 
 def fall_back(job, run, work):

@@ -107,7 +107,7 @@ def find_legs(config):
                 from_file = info.get("mapping_method", {}).get("mapper") == "file"
                 if from_file != bool(options.get("mappings")):
                     continue
-            for leg in LEGS:
+            for leg in config.get("legs") or LEGS:
                 if not (d / f"{leg}_lambda_0.bss").exists():
                     print(f"Warning: {d}/{leg}_lambda_0.bss is missing", file=sys.stderr)
                     continue

@@ -1,0 +1,3 @@
+# The default protocol with crash reports, to find why some legs become unstable.
+base: default
+save_crash_report: true

@@ -1,0 +1,3 @@
+# The debug config without GCMC.
+base: debug
+gcmc: false

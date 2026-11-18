@@ -11,6 +11,7 @@ can be changed without touching the scripts.
 |---|---|
 | `config.yaml` | Paths, environment set-up, Slurm settings, and what to run. |
 | `config_calibration.yaml` | Calibration of the default SOMD2 settings, with `config_calibration_smoke.yaml` as a short check of it first. `config_rest2.yaml` calibrates the REST2 scale on the same edges. |
+| `config_debug.yaml` | Reruns of unstable legs with crash reports, written to each leg's run directory, and with terminal flips or GCMC switched off. |
 | `somd2/*.yaml` | SOMD2 configs, chosen per block. Settings under `legs:` apply to one leg only, and `base:` names a config to start from. |
 | `benchmarks.py` | Run on a login node: `plan`, `submit` and `collect`. |
 | `leg.sbatch`, `leg.py` | One job: run SOMD2, analyse with MBAR, copy the results, top up the queue. |
@@ -35,7 +36,7 @@ all_on]`. Each config's legs are kept separately, under the config's name. Setti
 under `overrides:` in `config.yaml` are applied to the SOMD2 config of every leg,
 e.g. a short `runtime` for a test. A test with overrides should use its own
 `paths.scratch` and `paths.output`, so that its legs don't count as done for the
-real run.
+real run. A top-level `legs:` list, e.g. `[free]`, runs only those legs.
 
 The throughput used for GPU-hour estimates can be set per SOMD2 config under
 `throughput.configs`. A config without a value uses the value of the config it's
