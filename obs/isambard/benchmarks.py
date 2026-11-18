@@ -264,46 +264,40 @@ def cmd_plan(config, args):
         print(f"  {state(config, leg, queued)}: {leg.id} ({logs[-1] if logs else 'no log'})")
 
 
-BLOCK = re.compile(r"Finished block \d+ of (\d+)")
-CYCLE = re.compile(r"^(\S+ \S+) .*Running dynamics at \S+ = ([0-9.]+)")
+CYCLE = re.compile(r"^(\S+ \S+) .*Running dynamics for cycle (\d+) of (\d+) \(time = ([0-9.]+) ns\)")
 
 
 def leg_progress(log):
     """Progress of a replica exchange leg from its SOMD2 log: the cycles run, the
-    total number of cycles, and the estimated time to finish. Each window logs
-    every cycle it runs, and the total comes from the number of cycles in the
-    first checkpoint block. The total and time are None before the first
-    checkpoint, and None is returned if no cycle has run."""
+    total number of cycles, and the estimated time to finish. The count restarts at
+    1 after a restart, so the cycles before it come from the logged time and the
+    spacing between cycles. The total and time are None until two cycles have run
+    in the current session, and None is returned if no cycle has run."""
     from datetime import datetime
 
-    cycles = Counter()
-    first = last = None
-    per_block = num_blocks = None
+    session = []
     for line in log.read_text(errors="replace").splitlines():
         match = CYCLE.match(line)
         if match:
-            cycles[match.group(2)] += 1
-            last = match.group(1)
-            first = first or last
-            continue
-        match = BLOCK.search(line)
-        if match and per_block is None:
-            per_block = max(cycles.values(), default=0)
-            num_blocks = int(match.group(1))
-    if not cycles:
+            stamp, cycle, cycles, time = match.groups()
+            if int(cycle) == 1:
+                session = []
+            session.append((stamp, int(cycle), int(cycles), float(time)))
+    if not session:
         return None
 
-    done = max(cycles.values())
-    if not per_block:
-        return done, None, None
-    total = per_block * num_blocks
+    stamp, cycle, cycles, time = session[-1]
+    if len(session) < 2:
+        return cycle, None, None
+    spacing = (time - session[0][3]) / (cycle - session[0][1])
+    before = round(session[0][3] / spacing) if spacing > 0 else 0
 
     def parse(t):
         return datetime.strptime(t, "%Y-%m-%d %H:%M:%S.%f")
 
-    elapsed = parse(last) - parse(first)
-    remaining = elapsed / done * max(total - done, 0) if done > 1 else None
-    return done, total, remaining
+    elapsed = parse(stamp) - parse(session[0][0])
+    remaining = elapsed / (cycle - session[0][1]) * (cycles - cycle)
+    return before + cycle, before + cycles, remaining
 
 
 def short_name(leg, ambiguous):
