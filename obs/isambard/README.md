@@ -36,7 +36,7 @@ all_on]`. Each config's legs are kept separately, under the config's name. Setti
 under `overrides:` in `config.yaml` are applied to the SOMD2 config of every leg,
 e.g. a short `runtime` for a test. A test with overrides should use its own
 `paths.scratch` and `paths.output`, so that its legs don't count as done for the
-real run. A top-level `legs:` list, e.g. `[free]`, runs only those legs.
+real run. A top-level `legs:` list, e.g. `[free]`, runs only those legs. An `exclude:` list of systems or edges, in the same form as `only:`, leaves them out.
 
 The throughput used for GPU-hour estimates can be set per SOMD2 config under
 `throughput.configs`. A config without a value uses the value of the config it's

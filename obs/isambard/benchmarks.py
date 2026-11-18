@@ -86,6 +86,7 @@ def find_legs(config):
     """Every leg and replicate selected by the config, in block order."""
     root = config["paths"]["input"]
     only = set(config.get("only") or [])
+    exclude = set(config.get("exclude") or [])
     legs = []
     for block, kind, group, system, options in _sets.load_set(
         config["set"], list(config["blocks"])
@@ -99,6 +100,8 @@ def find_legs(config):
             continue
         for d in sorted(p for p in system_dir.iterdir() if p.is_dir()):
             if only and f"{group}/{system}" not in only and f"{group}/{system}/{d.name}" not in only:
+                continue
+            if f"{group}/{system}" in exclude or f"{group}/{system}/{d.name}" in exclude:
                 continue
             if "edges" in options and d.name not in options["edges"]:
                 continue

@@ -41,6 +41,7 @@ set: curated
 blocks:
   B: default
   C: default
+  P: default
 replicates: 3
 
 # Optional: restrict to these systems ("group/system") or edges/ligands
@@ -53,6 +54,37 @@ only:
   # Charge changes in ptp1b, with tyk2 as a control.
   - charge_annihilation_set/ptp1b
   - charge_annihilation_set/tyk2
+  # The systems of block P, whose edges are listed in the set.
+  - fragments/liga
+  - fragments/p38
+  - jacs_set/mcl1
+  - mcs_docking_set/hne
+  - mcs_docking_set/renin
+  - merck/cdk8
+  - merck/hif2a
+  - merck/pfkfb3
+  - merck/shp2
+  - merck/syk
+  - miscellaneous_set/btk
+  - miscellaneous_set/faah
+  - miscellaneous_set/hiv1_protease
+
+# Edges left out until they're re-prepared: mappings that change with BioSimSpace's
+# mcs_strategy="both" (a truncated or ring-flipped MCS), and the hsp90_kung edges
+# replaced by their _rb versions.
+exclude:
+  - jacs_set/mcl1/28~46_flip
+  - merck/hif2a/1~266
+  - merck/hif2a/57~266
+  - merck/pfkfb3/62_flip~39
+  - merck/shp2/SHP099-1_Example_7~Example_28
+  - miscellaneous_set/faah/6MRG_ligand~20
+  - miscellaneous_set/hiv1_protease/12~19
+  - miscellaneous_set/hiv1_protease/17~20
+  - miscellaneous_set/hiv1_protease/9~19
+  - water_set/hsp90_woodhead/4~1
+  - water_set/hsp90_kung/cmpd_9~cmpd_7
+  - water_set/hsp90_kung/cmpd_9~cmpd_8
 
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false
