@@ -24,14 +24,17 @@ logger = _common.logger
 RELAXED_RING_WARNING = "ringMatchesRingOnly"
 
 
-def bss_mapping(lig_a, lig_b, max_scoring_matches):
+def bss_mapping(lig_a, lig_b, max_scoring_matches, mcs_strategy="full"):
     """Map with BioSimSpace, re-mapping with ring matching relaxed if BioSimSpace
     warns that this gives a larger common core."""
     start = time.time()
+    # Only pass the strategy when it isn't the default, since BioSimSpace versions
+    # without the option don't accept it.
+    options = {"mcs_strategy": mcs_strategy} if mcs_strategy != "full" else {}
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         mapping = BSS.Align.matchAtoms(
-            lig_a, lig_b, max_scoring_matches=max_scoring_matches
+            lig_a, lig_b, max_scoring_matches=max_scoring_matches, **options
         )
     messages = [str(w.message) for w in caught]
 
@@ -40,12 +43,17 @@ def bss_mapping(lig_a, lig_b, max_scoring_matches):
         mcs_kwargs = {"ringMatchesRingOnly": False}
         logger.info(f"Re-mapping with {mcs_kwargs}: {len(mapping)} mapped atoms before")
         mapping = BSS.Align.matchAtoms(
-            lig_a, lig_b, max_scoring_matches=max_scoring_matches, mcs_kwargs=mcs_kwargs
+            lig_a,
+            lig_b,
+            max_scoring_matches=max_scoring_matches,
+            mcs_kwargs=mcs_kwargs,
+            **options,
         )
     logger.info(f"{len(mapping)} mapped atoms in {time.time() - start:.1f} s")
     return mapping, {
         "mcs_kwargs": mcs_kwargs,
         "max_scoring_matches": max_scoring_matches,
+        "mcs_strategy": mcs_strategy,
         "warnings": messages,
     }
 
@@ -150,6 +158,7 @@ def merge_edge(
     allow_ring_size_change,
     max_matches,
     max_pair_distance=None,
+    mcs_strategy="full",
 ):
     lig_a = _common.load_ligand(param_dir, edge.componentA.name)
     lig_b = _common.load_ligand(param_dir, edge.componentB.name)
@@ -161,7 +170,7 @@ def merge_edge(
         mapping = network_mapping
         merged, lig_b = merge(lig_a, lig_b, mapping, *flags)
     else:
-        mapping, extra = bss_mapping(lig_a, lig_b, max_matches)
+        mapping, extra = bss_mapping(lig_a, lig_b, max_matches, mcs_strategy)
         details.update(extra)
         if max_pair_distance is not None:
             mapping, pruned = prune_distant_pairs(lig_a, lig_b, mapping, max_pair_distance)
@@ -228,6 +237,13 @@ def main():
         "with BioSimSpace versions before the fix for issue #561.",
     )
     parser.add_argument(
+        "--mcs-strategy",
+        default="full",
+        choices=["full", "heavy", "both"],
+        help="BioSimSpace's MCS strategy: 'full' (the default), 'heavy', or 'both', which "
+        "uses the larger of the two mappings. Needs a BioSimSpace with 'mcs_strategy'.",
+    )
+    parser.add_argument(
         "--max-pair-distance",
         type=float,
         default=None,
@@ -289,7 +305,7 @@ def main():
         name = _common.edge_name(edge)
         out = root / name
         if not args.overwrite and is_prepared(
-            out, args.legs, mapper(args, edge), args.max_scoring_matches
+            out, args.legs, mapper(args, edge), args.max_scoring_matches, args.mcs_strategy
         ):
             logger.info(f"Skipping {name}: already prepared")
             continue
@@ -308,7 +324,7 @@ def main():
     _common.report_failures(failed, len(edges), "edges")
 
 
-def is_prepared(out, legs, method, max_scoring_matches):
+def is_prepared(out, legs, method, max_scoring_matches, mcs_strategy="full"):
     """Whether the edge has been prepared with the same mapping settings."""
     info = out / "edge.json"
     if not info.exists() or not all((out / f"{leg}.bss").exists() for leg in legs):
@@ -317,7 +333,10 @@ def is_prepared(out, legs, method, max_scoring_matches):
     if details.get("mapper") != method:
         return False
     if method == "biosimspace":
-        return details.get("max_scoring_matches") == max_scoring_matches
+        return (
+            details.get("max_scoring_matches") == max_scoring_matches
+            and details.get("mcs_strategy", "full") == mcs_strategy
+        )
     return True
 
 
@@ -330,6 +349,7 @@ def prepare_edge(args, edge, out, param_dir, receptor):
         args.allow_ring_size_change or getattr(edge, "allow_ring_size_change", False),
         args.max_scoring_matches,
         args.max_pair_distance,
+        args.mcs_strategy,
     )
 
     for leg in args.legs:
