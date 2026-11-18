@@ -18,3 +18,7 @@ gcmc: true
 gcmc_frequency: 5 ps
 # Keep the co-alchemical ion of charge-changing edges away from the ligand.
 coalchemical_restraint_dist: 10 A
+# GCMC only for the bound leg, since the free leg's ligand is in bulk water.
+legs:
+  free:
+    gcmc: false

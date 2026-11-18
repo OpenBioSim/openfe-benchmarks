@@ -40,7 +40,7 @@ top_up: false
 # SOMD2 config to use (somd2/<name>.yaml).
 set: curated
 blocks:
-  B: debug_ion
+  B: debug_ion_nogcmc
 replicates: 3
 
 # Only these legs.

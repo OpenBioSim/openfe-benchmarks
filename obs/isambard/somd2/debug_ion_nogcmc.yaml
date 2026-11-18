@@ -1,0 +1,2 @@
+# The debug config with the co-alchemical ion restrained and no GCMC in the free leg.
+base: debug_ion
