@@ -25,6 +25,7 @@ COPY = [
     "log.txt",
     "abfe_restraint.s3",
     "gcmc_ghosts_*.txt",
+    "repex_matrix.txt",
 ]
 
 
