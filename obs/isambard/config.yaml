@@ -69,20 +69,9 @@ only:
   - miscellaneous_set/faah
   - miscellaneous_set/hiv1_protease
 
-# Edges left out until they're re-prepared: mappings that change with BioSimSpace's
-# mcs_strategy="both" (a truncated or ring-flipped MCS), and the hsp90_kung edges
-# replaced by their _rb versions.
+# The hsp90_kung edges replaced by their _rb versions, which map the vanishing pyrrole
+# nitrogen onto the appearing amine.
 exclude:
-  - jacs_set/mcl1/28~46_flip
-  - merck/hif2a/1~266
-  - merck/hif2a/57~266
-  - merck/pfkfb3/62_flip~39
-  - merck/shp2/SHP099-1_Example_7~Example_28
-  - miscellaneous_set/faah/6MRG_ligand~20
-  - miscellaneous_set/hiv1_protease/12~19
-  - miscellaneous_set/hiv1_protease/17~20
-  - miscellaneous_set/hiv1_protease/9~19
-  - water_set/hsp90_woodhead/4~1
   - water_set/hsp90_kung/cmpd_9~cmpd_7
   - water_set/hsp90_kung/cmpd_9~cmpd_8
 
