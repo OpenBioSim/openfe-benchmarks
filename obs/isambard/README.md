@@ -11,7 +11,7 @@ can be changed without touching the scripts.
 |---|---|
 | `config.yaml` | Paths, environment set-up, Slurm settings, and what to run. |
 | `config_calibration.yaml` | Calibration of the default SOMD2 settings, with `config_calibration_smoke.yaml` as a short check of it first. `config_rest2.yaml` calibrates the REST2 scale on the same edges. |
-| `config_debug.yaml` | Reruns of unstable legs with crash reports, written to each leg's run directory, and with terminal flips or GCMC switched off. |
+| `config_debug.yaml` | Reruns of unstable legs with crash reports, written to each leg's run directory, e.g. with terminal flips or GCMC switched off, or the co-alchemical ion restrained. |
 | `somd2/*.yaml` | SOMD2 configs, chosen per block. Settings under `legs:` apply to one leg only, and `base:` names a config to start from. |
 | `benchmarks.py` | Run on a login node: `plan`, `submit` and `collect`. |
 | `leg.sbatch`, `leg.py` | One job: run SOMD2, analyse with MBAR, copy the results, top up the queue. |

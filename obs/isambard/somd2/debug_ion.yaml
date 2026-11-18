@@ -1,0 +1,3 @@
+# The debug config with the co-alchemical ion restrained away from the ligand.
+base: debug
+coalchemical_restraint_dist: 10 A

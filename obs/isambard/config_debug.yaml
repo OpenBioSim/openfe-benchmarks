@@ -40,16 +40,17 @@ top_up: false
 # SOMD2 config to use (somd2/<name>.yaml).
 set: curated
 blocks:
-  B: [debug, debug_noflip, debug_nogcmc]
-  C: [debug, debug_noflip, debug_nogcmc]
-replicates: 1
+  B: debug_ion
+replicates: 3
 
 # Only these legs.
 legs: [free]
 
 only:
-  - water_set/hsp90_kung/cmpd_9~cmpd_8
+  # Charge-changing free legs that failed in production.
   - charge_annihilation_set/tyk2/jmc_32charg~jmc_31
+  - charge_annihilation_set/tyk2/ejm_52charg~ejm_46
+  - charge_annihilation_set/ptp1b/26charg~27
 
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false
