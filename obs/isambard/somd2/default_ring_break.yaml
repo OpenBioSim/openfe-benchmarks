@@ -1,5 +1,0 @@
-# The default protocol with SOMD2's ring-breaking schedule (and its automatic Morse
-# restraints), for edges whose mapping breaks a ring.
-base: default
-lambda_schedule: ring_break_morph
-num_lambda: 21
