@@ -101,7 +101,7 @@ blocks:
       mcs_docking_set/hne: [6~14, 6~18]
       mcs_docking_set/renin: [b1i2n~b1i5o, b1i5o~b1i4e]
       merck/cdk8: [13~42-flipped, 19~17-flipped, 19~18-flipped, 30~42-flipped, 34~44-flipped, 36~44-flipped, 43~38, 43~42-flipped]
-      merck/hif2a: [1~266, 1~41, 41~84, 57~266]
+      merck/hif2a: [1~266, 1~266_rb, 1~41, 41~84, 57~266]
       merck/pfkfb3: [43~58, 43~59, 43~60_adjust, 43~63, 43~64, 62_flip~39]
       merck/shp2: [SHP099-1_Example_7~Example_28]
       merck/syk: [CHEMBL3265017~intermediate, CHEMBL3265021~intermediate, CHEMBL3265024~intermediate, CHEMBL3265025_flip~intermediate, CHEMBL3265026~intermediate]

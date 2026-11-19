@@ -69,11 +69,13 @@ only:
   - miscellaneous_set/faah
   - miscellaneous_set/hiv1_protease
 
-# The hsp90_kung edges replaced by their _rb versions, which map the vanishing pyrrole
-# nitrogen onto the appearing amine.
+# Edges replaced by their _rb versions, which map vanishing atoms onto the appearing
+# atoms that sit on top of them.
 exclude:
   - water_set/hsp90_kung/cmpd_9~cmpd_7
   - water_set/hsp90_kung/cmpd_9~cmpd_8
+  - water_set/hsp90_woodhead/4~1
+  - merck/hif2a/1~266
 
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false
