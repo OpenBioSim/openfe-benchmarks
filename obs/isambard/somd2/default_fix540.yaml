@@ -1,0 +1,2 @@
+# The default protocol, rerun with the Sire fix for to/from ghost exceptions (sire#540).
+base: default
