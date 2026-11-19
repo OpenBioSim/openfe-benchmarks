@@ -69,13 +69,13 @@ only:
   - miscellaneous_set/faah
   - miscellaneous_set/hiv1_protease
 
-# Edges replaced by their _rb versions, which map vanishing atoms onto the appearing
-# atoms that sit on top of them.
+# Remappings of edges whose overlapping ghosts crashed before the Sire fix for
+# to/from ghost exceptions; the original mappings are run instead.
 exclude:
-  - water_set/hsp90_kung/cmpd_9~cmpd_7
-  - water_set/hsp90_kung/cmpd_9~cmpd_8
-  - water_set/hsp90_woodhead/4~1
-  - merck/hif2a/1~266
+  - water_set/hsp90_kung/cmpd_9~cmpd_7_rb
+  - water_set/hsp90_kung/cmpd_9~cmpd_8_rb
+  - water_set/hsp90_woodhead/4~1_rb
+  - merck/hif2a/1~266_rb
 
 # Copy the trajectories to the output directory as well as the energies.
 copy_trajectories: false
