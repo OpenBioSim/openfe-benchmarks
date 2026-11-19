@@ -349,9 +349,14 @@ def cmd_submit(config, args):
     queued = queue()
     slots = config["slurm"]["max_jobs"] - len(queued)
     submitted = 0
+    # A leg shared by several blocks is only considered once.
+    seen = set()
     for leg in find_legs(config):
         if slots <= 0:
             break
+        if leg.id in seen:
+            continue
+        seen.add(leg.id)
         if state(config, leg, queued) in ("new", "unfinished") and submit_leg(config, leg, args.dry_run):
             slots -= 1
             submitted += 1
