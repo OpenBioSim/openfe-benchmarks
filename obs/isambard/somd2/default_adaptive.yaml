@@ -1,0 +1,3 @@
+# The default protocol with adaptive replica exchange.
+base: default
+adaptive_repex: true

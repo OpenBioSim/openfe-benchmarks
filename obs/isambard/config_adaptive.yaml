@@ -1,0 +1,91 @@
+# Paired comparison of the default protocol with and without adaptive replica exchange.
+# What to run on Isambard-AI, and how. Environment variables are expanded.
+
+paths:
+  # Equilibrated inputs, i.e. the contents of obs_output, laid out as
+  # <group>/<system>/{rbfe,abfe}/<name>/.
+  input: ${PROJECTDIR}/lester/benchmarks/input
+  # Where SOMD2 runs, including checkpoints for restarts.
+  scratch: ${SCRATCHDIR}/somd2_benchmarks
+  # Where finished legs and their analysis are copied.
+  output: ${PROJECTDIR}/lester/benchmarks/output
+
+# Commands run at the start of each job.
+setup:
+  - module load cuda/12.6
+  # nvcc (used by loch for GCMC) doesn't support pixi's GCC, so use the system GCC 13.
+  - module load gcc-native/13.2
+  - eval "$(pixi shell-hook -e obs --frozen --manifest-path ${PROJECTDIR}/lester/code/sire/pixi.toml)"
+  - export NVCC_PREPEND_FLAGS="-ccbin g++-13"
+
+# A leg that becomes unstable is restarted from scratch with this timestep, since
+# SOMD2 can't change the timestep on a restart. Set to null to disable.
+fallback_timestep: 2 fs
+
+slurm:
+  gpus_per_job: 1
+  time: "12:00:00"
+  # Jobs queued or running at once. Each uses 'gpus_per_job' GPUs, so this also
+  # caps the GPUs in use. The QOS allows 256 running and 512 submitted.
+  max_jobs: 32
+  # Times an unfinished leg is resubmitted (restarting from its checkpoint).
+  max_attempts: 3
+  extra: []
+
+# Each job submits more legs when it finishes, up to 'max_jobs', so the queue keeps
+# itself topped up. Set to false to submit only by running 'benchmarks.py submit'.
+top_up: true
+
+# Finished edges rerun with adaptive replica exchange. Most have two earlier
+# triplicates (default and default_fix540, or the calibration arms), which give
+# the run-to-run spread to compare against.
+set: curated
+blocks:
+  A: default_adaptive
+  B: default_adaptive
+  C: default_adaptive
+  E: default_adaptive
+  P: default_adaptive
+replicates: 3
+
+only:
+  # Charge changes.
+  - charge_annihilation_set/ptp1b/26charg~32
+  - charge_annihilation_set/ptp1b/26charg~27
+  - charge_annihilation_set/tyk2/ejm_52charg~ejm_46
+  # Buried waters.
+  - water_set/hsp90_woodhead/1~3
+  - water_set/hsp90_kung/cmpd_9~cmpd_7
+  - water_set/brd4/cmpd_2__methyl_~cmpd_3__Allyl_
+  - water_set/thrombin/6d_pose_2~1b_pose_2
+  # Partially fused rings.
+  - merck/hif2a/57~266
+  - merck/hif2a/1~41
+  - mcs_docking_set/hne/6~14
+  - merck/cdk8/19~17-flipped
+  - merck/cdk8/30~42-flipped
+  - merck/cdk8/43~38
+  - jacs_set/mcl1/27~45
+  # Calibration edges.
+  - jacs_set/bace/CAT-13o~CAT-13f
+  - jacs_set/tyk2/ejm_55~ejm_54
+  - miscellaneous_set/faah/22~25
+  - miscellaneous_set/faah/19~28
+  - miscellaneous_set/btk/8~10
+  - miscellaneous_set/btk/2~9_flip
+
+# Copy the trajectories to the output directory as well as the energies.
+copy_trajectories: false
+
+# Throughput per GPU in ns/day, summed over the windows, for cost estimates. Values
+# under 'configs' apply to a SOMD2 config and the configs based on it, and were
+# measured on Isambard-AI; the others are the defaults.
+throughput:
+  bound: 420
+  free: 940
+  configs:
+    matched: {bound: 850, free: 2450}
+    all_on: {bound: 550, free: 1700}
+    default: {bound: 600, free: 1700}
+    abfe: {bound: 800, free: 2350}
+    ring_break: {bound: 850, free: 2200}
