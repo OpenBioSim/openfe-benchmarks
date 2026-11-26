@@ -24,7 +24,7 @@ fallback_timestep: 2 fs
 
 slurm:
   gpus_per_job: 1
-  time: "12:00:00"
+  time: "05:00:00"
   # Jobs queued or running at once. Each uses 'gpus_per_job' GPUs, so this also
   # caps the GPUs in use. The QOS allows 256 running and 512 submitted.
   max_jobs: 32
