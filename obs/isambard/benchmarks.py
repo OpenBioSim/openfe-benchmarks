@@ -248,7 +248,12 @@ def submit_leg(config, leg, dry_run):
 
 def cmd_plan(config, args):
     queued = queue()
-    legs = find_legs(config)
+    # A leg shared by several blocks is counted once, under the first.
+    legs, seen = [], set()
+    for leg in find_legs(config):
+        if leg.id not in seen:
+            seen.add(leg.id)
+            legs.append(leg)
     counts = defaultdict(Counter)
     remaining = defaultdict(float)
     for leg in legs:
