@@ -1,6 +1,6 @@
 # The default protocol for the production blocks, frozen from the calibration
-# (rest2_4): replica exchange, terminal flips, REST2 on the automatic region with
-# the exponential profile, and GCMC on the automatic sphere.
+# (rest2_4): adaptive replica exchange, terminal flips, REST2 on the automatic region
+# with the exponential profile, and GCMC on the automatic sphere.
 runtime: 5 ns
 checkpoint_frequency: 500 ps
 frame_frequency: 500 ps
@@ -9,6 +9,7 @@ temperature: 298.15 K
 pressure: 1 bar
 num_lambda: 11
 replica_exchange: true
+adaptive_repex: true
 # Energies only for the nearest windows, since distant windows seldom overlap.
 num_energy_neighbours: 3
 terminal_flip_frequency: 1 ps
